@@ -7,6 +7,12 @@ data nat : Set where
   zero : nat
   succ : nat -> nat
 
+data bool : Set where
+  true : bool
+  false : bool
+
+data _≡_ {A : Set} (x : A) : A → Set where
+  refl : x ≡ x
 
 -- Types, Values and Expressions
 
@@ -45,6 +51,7 @@ eval (if p t e ) = cond (eval p) (eval t) (eval e )
 
 
 -- Stack
+
 data List (A : Set) : nat -> Set where
    [] : List A zero
    _::_ : {n : nat} -> A -> List A n -> List A (succ n)
@@ -56,4 +63,33 @@ data Stack : forall {n : nat} -> List TyExp n -> Set where
 top : {n : nat} -> {t : TyExp} -> {s : List TyExp n} -> Stack (t :: s) -> Val t
 top (v |> x) = v
 
+
 -- Code
+
+data Code : {n k : nat} -> List TyExp n -> List TyExp k -> Set where
+  skip : {n k : nat} -> {S : List TyExp n} -> {S' : List TyExp k} -> Code S S
+  _++_ : {k l m : nat} -> {S0 : List TyExp k} -> {S1 : List TyExp l} -> {S2 : List TyExp m} -> Code S0 S1 -> Code S1 S2 -> Code S0 S2
+  PUSH : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> Val T -> Code S (T :: S)
+  ADD  : {n : nat} -> {S : List TyExp n} -> Code (Nat :: (Nat :: S)) (Nat :: S)
+  IF   : {n k : nat} -> {S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Code S S' -> Code (Bool :: S) S'  --not sure here either
+
+exec : {n k : nat} ->{S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Stack S -> Stack S'
+exec skip s = s
+exec (c ++ c₁) s = exec c₁ (exec c s)
+exec (PUSH x) s = x |> s
+exec ADD (v |> (v₁ |> s)) = {!!} -- (v + v₁) s  <- this doesnt work, why?
+exec (IF c1 c2) (True |> s) = exec c1 s
+exec (IF c1 c2) (False |> s) = exec c2 s
+
+compile : {n : nat} -> {S : List TyExp n} -> {T : TyExp } -> Exp T -> Code S ( T :: S)
+compile (val v) = PUSH v
+compile (plus e e₁) = compile e₁ ++ (compile e ++ ADD)
+compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
+
+
+-- Correct
+
+correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
+correct (val v) s = refl
+correct (plus e e₁) s = {!!}
+correct (if e e₁ e₂) s = {!!}
