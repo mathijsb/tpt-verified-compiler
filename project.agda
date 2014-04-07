@@ -1,3 +1,4 @@
+
 module project where
 
 -- Types, Values and Expressions
@@ -36,17 +37,16 @@ eval (if p t e ) = cond (eval p) (eval t) (eval e )
 
 
 -- Stack
-{-
-NOT SURE ABOUT HOW TO IMPLEMENT THIS PART
-data List : Set -> Set where
-   [] : forall s -> List s
-   _::_ : forall {s} -> s -> List s -> List s
 
-data Stack : Set where
-  empty : Stack
-  _|>_ : TyExp -> Stack -> Stack
+-- Should list have it's length in the type?
+data List (A : Set) : Set where
+   [] : List A
+   _::_ : A -> List A -> List A
 
-top : Stack -> TyExp
-top empty = {!!}
-top (x |> s) = {!!}
--}
+data Stack : List TyExp -> Set where
+  empty : Stack []
+  _|>_ : {ty : TyExp } -> { s : List TyExp } -> (v : Val ty ) -> (st : Stack s) -> Stack s
+
+top : {ty : TyExp } -> { s : List TyExp } -> Stack s -> Val ty
+top empty = {!!}  -- we don't want this case, to prevent stack underflow!
+top (v |> x) = {!!}
