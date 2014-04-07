@@ -1,6 +1,13 @@
 
 module project where
 
+-- Prelude
+
+data nat : Set where
+  zero : nat
+  succ : nat -> nat
+
+
 -- Types, Values and Expressions
 
 data TyExp : Set where
@@ -17,6 +24,7 @@ data Exp : TyExp -> Set where
   val  : forall { ty } -> (v : Val ty) -> Exp ty
   plus : (e1 : Exp Nat) -> (e2 : Exp Nat) -> Exp Nat
   if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
+
 
 -- Basic functions
 
@@ -37,16 +45,15 @@ eval (if p t e ) = cond (eval p) (eval t) (eval e )
 
 
 -- Stack
+data List (A : Set) : nat -> Set where
+   [] : List A zero
+   _::_ : {n : nat} -> A -> List A n -> List A (succ n)
 
--- Should list have it's length in the type?
-data List (A : Set) : Set where
-   [] : List A
-   _::_ : A -> List A -> List A
-
-data Stack : List TyExp -> Set where
+data Stack : forall {n : nat} -> List TyExp n -> Set where
   empty : Stack []
-  _|>_ : {ty : TyExp } -> { s : List TyExp } -> (v : Val ty ) -> (st : Stack s) -> Stack s
+  _|>_ : {n : nat} -> {t : TyExp} -> {s : List TyExp n} -> (v : Val t) -> (xs : Stack s) -> Stack (t :: s)
 
-top : {ty : TyExp } -> { s : List TyExp } -> Stack s -> Val ty
-top empty = {!!}  -- we don't want this case, to prevent stack underflow!
-top (v |> x) = {!!}
+top : {n : nat} -> {t : TyExp} -> {s : List TyExp n} -> Stack (t :: s) -> Val t
+top (v |> x) = v
+
+-- Code
