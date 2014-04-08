@@ -77,7 +77,7 @@ exec : {n k : nat} ->{S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> S
 exec skip s = s
 exec (c ++ c₁) s = exec c₁ (exec c s)
 exec (PUSH x) s = x |> s
-exec ADD (v |> (v₁ |> s)) = {!!} -- (v + v₁) s  <- this doesnt work, why?
+exec ADD (v |> (v₁ |> s)) = (v + v₁) |> s -- (v + v₁) s  <- this doesnt work, why?
 exec (IF c1 c2) (True |> s) = exec c1 s
 exec (IF c1 c2) (False |> s) = exec c2 s
 
