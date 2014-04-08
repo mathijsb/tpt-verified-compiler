@@ -77,7 +77,7 @@ exec : {n k : nat} ->{S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> S
 exec skip s = s
 exec (c ++ c₁) s = exec c₁ (exec c s)
 exec (PUSH x) s = x |> s
-exec ADD (v |> (v₁ |> s)) = (v + v₁) |> s -- (v + v₁) s  <- this doesnt work, why?
+exec ADD (v |> (v₁ |> s)) = (v + v₁) |> s
 exec (IF c1 c2) (True |> s) = exec c1 s
 exec (IF c1 c2) (False |> s) = exec c2 s
 
@@ -89,7 +89,26 @@ compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
 
 -- Correct
 
+lemma : {n : nat} 
+        -> {S : List TyExp n} 
+        -> (e e₁ : Exp Nat)
+        -> (s : Stack S)
+        -> ((eval e) |> s) ≡ (exec (compile e) s) 
+        -> ((eval e₁) |> s) ≡ (exec (compile e₁) s)
+        -> ((eval e + eval e₁) |> s) ≡ exec ADD (exec (compile e) (exec (compile e₁) s))
+lemma (val v) (val v₁) s refl refl = refl
+lemma (val v) (plus e₁ e₂) s refl p2 = {!!}
+lemma (val v) (if e₁ e₂ e₃) s refl p2 = {!!}
+lemma (plus e e₁) (val v) s p1 refl = {!!}
+lemma (plus e e₁) (plus e₂ e₃) s p1 p2 = {!!}
+lemma (plus e e₁) (if e₂ e₃ e₄) s p1 p2 = {!!}
+lemma (if e e₁ e₂) (val v) s p1 refl = {!!}
+lemma (if e e₁ e₂) (plus e₃ e₄) s p1 p2 = {!!}
+lemma (if e e₁ e₂) (if e₃ e₄ e₅) s p1 p2 = {!!}
+
 correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
-correct (plus e e₁) s = {!!}
-correct (if e e₁ e₂) s = {!!}
+correct (plus e e₁) s with correct e s | correct e₁ s
+correct (plus e e₁) s | k | l = lemma e e₁ s k l
+correct (if e e₁ e₂) s with correct e s
+... | k = {!!}
