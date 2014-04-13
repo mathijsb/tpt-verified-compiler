@@ -29,7 +29,7 @@ data Val : TyExp -> Set where
 data Exp : TyExp -> Set where
   val  : forall { ty } -> (v : Val ty) -> Exp ty
   plus : (e1 : Exp Nat) -> (e2 : Exp Nat) -> Exp Nat
---  if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
+  if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
 
 
 -- Basic functions
@@ -47,7 +47,7 @@ cond False t e = e
 eval : forall { ty } -> (e : Exp ty) -> Val ty
 eval (val v) = v
 eval (plus e e1 ) = (eval e ) + (eval e1 )
--- eval (if p t e ) = cond (eval p) (eval t) (eval e )
+eval (if p t e ) = cond (eval p) (eval t) (eval e )
 
 
 -- Stack
@@ -71,20 +71,20 @@ data Code : {n k : nat} -> List TyExp n -> List TyExp k -> Set where
   _++_ : {k l m : nat} -> {S0 : List TyExp k} -> {S1 : List TyExp l} -> {S2 : List TyExp m} -> Code S0 S1 -> Code S1 S2 -> Code S0 S2
   PUSH : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> Val T -> Code S (T :: S)
   ADD  : {n : nat} -> {S : List TyExp n} -> Code (Nat :: (Nat :: S)) (Nat :: S)
---  IF   : {n k : nat} -> {S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Code S S' -> Code (Bool :: S) S'  --not sure here either
+  IF   : {n k : nat} -> {S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Code S S' -> Code (Bool :: S) S'  --not sure here either
 
 exec : {n k : nat} ->{S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Stack S -> Stack S'
 exec skip s = s
 exec (c ++ c₁) s = exec c₁ (exec c s)
 exec (PUSH x) s = x |> s
 exec ADD (v |> (v₁ |> s)) = (v + v₁) |> s
---exec (IF c1 c2) (True |> s) = exec c1 s
---exec (IF c1 c2) (False |> s) = exec c2 s
+exec (IF c1 c2) (True |> s) = exec c1 s
+exec (IF c1 c2) (False |> s) = exec c2 s
 
 compile : {n : nat} -> {S : List TyExp n} -> {T : TyExp } -> Exp T -> Code S ( T :: S)
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e₁ ++ (compile e ++ ADD)
---compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
+compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
 
 
 -- Correct
@@ -178,6 +178,12 @@ correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁)
 correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 with correct e (eval1 |> s)
 ... | g  with (exec (compile e) (eval1 |> s))
 correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 | refl | .(eval e |> (eval1 |> s)) = refl
+correct (if e e1 e2) s with correct e s | correct e1 s | correct e2 s
+... | p1 | p2 | p3 with  (exec (compile e) s) | (exec (compile e1) s) | (exec (compile e2) s) 
+correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) with (eval e)
+correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) | True = correct e1 s
+correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) | False = correct e2 s
+
 
 
 
