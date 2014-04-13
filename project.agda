@@ -91,6 +91,7 @@ compile (plus e e₁) = compile e₁ ++ (compile e ++ ADD)
 
 -- lemma2 : ((c + v₂) |> a) ≡ (v |> d)
 
+{-
 lemma : {n : nat} 
         -> {S : List TyExp n} 
         -> (e e₁ : Exp Nat)
@@ -99,9 +100,11 @@ lemma : {n : nat}
         -> ((eval e₁) |> s) ≡ (exec (compile e₁) s)
         -> ((eval e + eval e₁) |> s) ≡ exec ADD (exec (compile e) (exec (compile e₁) s))
 lemma e1 e2 s p1 p2 with (exec (compile e2) s) | (exec (compile e1) s) | (eval e1) | (eval e2)
-lemma e1 e2 .a refl refl | v |> a | .(c |> a) | c | .v with exec (compile e1) (c |> a)
-lemma e1 e2 .a refl refl | v |> a | .(c |> a) | c | .v | v₁ |> b with exec ADD (eval e1 |> (eval e2 |> a))
-lemma e1 e2 .a refl refl | v₁ |> a | .(c |> a) | c | .v₁ | v₂ |> b | v |> x = {!!}
+lemma e1 e2 .a refl refl | (v |> a) | .(c |> a) | c | .v with exec (compile e1) (c |> a)
+lemma e1 e2 .a refl refl | (v |> a) | .(c |> a) | c | .v | v₁ |> b with exec ADD (eval e1 |> (eval e2 |> a))
+lemma e1 e2 .a refl refl | (v₁ |> a) | .(c |> a) | c | .v₁ | v₂ |> b | v |> x with exec (compile e1) (v₁ |> a)
+lemma e1 e2 .a refl refl | v₁ |> a | .(c |> a) | c | .v₁ | v₄ |> b | v₃ |> x | v |> (v₂ |> m) = {!!}
+-}
 
 --lemma e1 e2 .a refl refl | v₃ |> a | .(c |> a) | c | .v₃ | v₂ |> b | v₁ |> x | v |> q = {!!}
 
@@ -165,9 +168,26 @@ lemma (if e e₁ e₂) (if e₃ e₄ e₅) s p1 p2 = {!!} -}
 --Goal: ((v + (eval e₁ + eval e₂)) |> s) ≡
 --      exec ADD (v |> exec ADD (exec (compile e₁) (exec (compile e₂) s)))
 
+--lemma2 : exec ADD (exec (compile e) (d |> s)) 
+--lemma2 = ?
+
 correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
 correct (plus e e₁) s with correct e s | correct e₁ s
-correct (plus e e₁) s | k | l = lemma e e₁ s k l
+correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁) s) | (eval e₁)
+correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 with correct e (eval1 |> s)
+... | g  with (exec (compile e) (eval1 |> s))
+correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 | refl | .(eval e |> (eval1 |> s)) = refl
+
+
+
+{-
+correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁) s) | (eval e) | (eval e₁)
+correct (plus e e₁) s | refl | refl | .(c |> s) | .(d |> s) | c | d with correct e (d |> s)
+... | f with (exec (compile e) (d |> s))
+correct (plus e e₁) s | refl | refl | .(c |> s) | .(d |> s) | c | d | refl | .(eval e |> (d |> s)) with (eval e)
+... | g = {!!} -}
+
+
 --correct (if e e₁ e₂) s with correct e s
 -- ... | k = {!!}
