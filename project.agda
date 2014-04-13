@@ -89,26 +89,14 @@ compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
 
 -- Correct
 
-lemma : {n : nat} 
-        -> {S : List TyExp n} 
-        -> (e e₁ : Exp Nat)
-        -> (s : Stack S)
-        -> ((eval e) |> s) ≡ (exec (compile e) s) 
-        -> ((eval e₁) |> s) ≡ (exec (compile e₁) s)
-        -> ((eval e + eval e₁) |> s) ≡ exec ADD (exec (compile e) (exec (compile e₁) s))
-lemma (val v) (val v₁) s refl refl = refl
-lemma (val v) (plus e₁ e₂) s refl p2 = {!!}
-lemma (val v) (if e₁ e₂ e₃) s refl p2 = {!!}
-lemma (plus e e₁) (val v) s p1 refl = {!!}
-lemma (plus e e₁) (plus e₂ e₃) s p1 p2 = {!!}
-lemma (plus e e₁) (if e₂ e₃ e₄) s p1 p2 = {!!}
-lemma (if e e₁ e₂) (val v) s p1 refl = {!!}
-lemma (if e e₁ e₂) (plus e₃ e₄) s p1 p2 = {!!}
-lemma (if e e₁ e₂) (if e₃ e₄ e₅) s p1 p2 = {!!}
-
 correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
 correct (plus e e₁) s with correct e s | correct e₁ s
-correct (plus e e₁) s | k | l = lemma e e₁ s k l
-correct (if e e₁ e₂) s with correct e s
-... | k = {!!}
+correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁) s) | (eval e₁)
+correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 with correct e (eval1 |> s)
+... | g  with (exec (compile e) (eval1 |> s))
+correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 | refl | .(eval e |> (eval1 |> s)) = refl
+correct (if e e1 e2) s with correct e s
+... | c with (exec (compile e) s) | (eval e)
+correct (if e e1 e2) s | refl | .(True |> s) | True = correct e1 s
+correct (if e e1 e2) s | refl | .(False |> s) | False = correct e2 s
