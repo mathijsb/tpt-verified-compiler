@@ -178,11 +178,25 @@ correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁)
 correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 with correct e (eval1 |> s)
 ... | g  with (exec (compile e) (eval1 |> s))
 correct (plus e e₁) s | refl | refl | .(eval e |> s) | .(eval1 |> s) | eval1 | refl | .(eval e |> (eval1 |> s)) = refl
+correct (if e e1 e2) s with correct e s
+... | c with (exec (compile e) s) | (eval e)
+correct (if e e1 e2) s | refl | .(True |> s) | True = correct e1 s
+correct (if e e1 e2) s | refl | .(False |> s) | False = correct e2 s
+
+{-
+correct (if e e1 e2) s with correct e s
+... | a with (exec (compile e) s)
+... | b with (eval e)
+correct (if e e1 e2) .b | refl | True |> b | .True = correct e1 b
+correct (if e e1 e2) .b | refl | False |> b | .False = correct e2 b -}
+
+
+{-
 correct (if e e1 e2) s with correct e s | correct e1 s | correct e2 s
 ... | p1 | p2 | p3 with  (exec (compile e) s) | (exec (compile e1) s) | (exec (compile e2) s) 
 correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) with (eval e)
 correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) | True = correct e1 s
-correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) | False = correct e2 s
+correct (if e e1 e2) s | refl | refl | refl | .(eval e |> s) | .(eval e1 |> s) | .(eval e2 |> s) | False = correct e2 s -}
 
 
 
