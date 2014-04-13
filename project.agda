@@ -1,6 +1,8 @@
 
 module project where
 
+open import Data.String using (String)
+
 -- Prelude
 
 data nat : Set where
@@ -30,7 +32,8 @@ data Exp : TyExp -> Set where
   val  : forall { ty } -> (v : Val ty) -> Exp ty
   plus : (e1 : Exp Nat) -> (e2 : Exp Nat) -> Exp Nat
   if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
-
+  assign : forall { ty } -> (s : String) -> (e : Exp ty) -> Exp ty
+  ref : forall { ty } -> (s : String) -> Exp ty
 
 -- Basic functions
 
@@ -48,8 +51,8 @@ eval : forall { ty } -> (e : Exp ty) -> Val ty
 eval (val v) = v
 eval (plus e e1 ) = (eval e ) + (eval e1 )
 eval (if p t e ) = cond (eval p) (eval t) (eval e )
-
-
+eval (assign s e) = {!!}
+eval (ref s) = {!!}
 -- Stack
 
 data List (A : Set) : nat -> Set where
@@ -85,6 +88,8 @@ compile : {n : nat} -> {S : List TyExp n} -> {T : TyExp } -> Exp T -> Code S ( T
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e₁ ++ (compile e ++ ADD)
 compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
+compile (assign s e) = {!!}
+compile (ref s) = {!!}
 
 
 -- Correct
@@ -100,3 +105,5 @@ correct (if e e1 e2) s with correct e s
 ... | c with (exec (compile e) s) | (eval e)
 correct (if e e1 e2) s | refl | .(True |> s) | True = correct e1 s
 correct (if e e1 e2) s | refl | .(False |> s) | False = correct e2 s
+correct (assign n e) s = {!!}
+correct (ref n) s = {!!}
