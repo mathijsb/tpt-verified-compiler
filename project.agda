@@ -26,10 +26,29 @@ data Val : TyExp -> Set where
   Zero : Val Nat 
   Succ : Val Nat -> Val Nat
 
+-- N -> Set
+  -- Var : Fin n -> Expr n
+  -- Let : Expr n -> Expr (Succ n) -> Expr n
+
+-- eval functie
+--  eval : Expr t ctx -> Env ctx -> Val t
+
+-- compilatie
+-- LDS / STS (of POP) toevoegen
+-- let e body
+  -- compile e ++ compile body
+  -- sts -1 om let variabelen weg te halen
+-- var i = lds -i
+
+
+-- extensie : types van variables weghalen
+-- kijken naar opgave lambda calculus
+
 data Exp : TyExp -> Set where
   val  : forall { ty } -> (v : Val ty) -> Exp ty
   plus : (e1 : Exp Nat) -> (e2 : Exp Nat) -> Exp Nat
   if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
+--  var  : Fin n -> Expr n
 
 
 -- Basic functions
@@ -72,6 +91,8 @@ data Code : {n k : nat} -> List TyExp n -> List TyExp k -> Set where
   PUSH : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> Val T -> Code S (T :: S)
   ADD  : {n : nat} -> {S : List TyExp n} -> Code (Nat :: (Nat :: S)) (Nat :: S)
   IF   : {n k : nat} -> {S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Code S S' -> Code (Bool :: S) S'  --not sure here either
+  -- LDS forall Ref S t -> Instr S (t :: S)
+  -- POP i.p.v STS
 
 exec : {n k : nat} ->{S : List TyExp n} -> {S' : List TyExp k} -> Code S S' -> Stack S -> Stack S'
 exec skip s = s
