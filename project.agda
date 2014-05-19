@@ -40,6 +40,9 @@ data Val : TyExp -> Set where
   -- sts -1 om let variabelen weg te halen
 -- var i = lds -i
 
+data Fin : nat -> Set where
+  Fz : forall {n} -> Fin (succ n)
+  Fs : forall {n} -> Fin n -> Fin (succ n)
 
 -- extensie : types van variables weghalen
 -- kijken naar opgave lambda calculus
@@ -48,7 +51,7 @@ data Exp : TyExp -> Set where
   val  : forall { ty } -> (v : Val ty) -> Exp ty
   plus : (e1 : Exp Nat) -> (e2 : Exp Nat) -> Exp Nat
   if   : forall { ty } -> (b : Exp Bool) -> (e1 e2 : Exp ty) -> Exp ty
---  var  : Fin n -> Expr n
+  var  : forall { n} -> Fin n -> Exp Bool
 
 
 -- Basic functions
@@ -67,7 +70,7 @@ eval : forall { ty } -> (e : Exp ty) -> Val ty
 eval (val v) = v
 eval (plus e e1 ) = (eval e ) + (eval e1 )
 eval (if p t e ) = cond (eval p) (eval t) (eval e )
-
+eval (var i) = {!!}
 
 -- Stack
 
@@ -106,10 +109,11 @@ compile : {n : nat} -> {S : List TyExp n} -> {T : TyExp } -> Exp T -> Code S ( T
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e₁ ++ (compile e ++ ADD)
 compile (if e e₁ e₂) = compile e ++ IF (compile e₁) (compile e₂)
-
+compile (var i) = {!!}
 
 -- Correct
 
+{-
 correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
 correct (plus e e₁) s with correct e s | correct e₁ s
@@ -121,3 +125,4 @@ correct (if e e1 e2) s with correct e s
 ... | c with (exec (compile e) s) | (eval e)
 correct (if e e1 e2) s | refl | .(True |> s) | True = correct e1 s
 correct (if e e1 e2) s | refl | .(False |> s) | False = correct e2 s
+-}
