@@ -63,7 +63,7 @@ compile : {n n2 : ℕ} -> {S : Vec TyExp n} -> {T : TyExp } -> Exp n2 T -> Code 
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e₁ ++₁ (compile e ++₁ ADD)
 compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
-compile (var i) = LDS 1 -- PUSH (bool true)
+compile (var i) = {!!} --LDS 1 -- PUSH (bool true)
 compile (let₁ e₁ e₂) = (compile e₁ ++₁ compile e₂) ++₁ POP
 
 correct : {T : TyExp} -> {n n₁ : ℕ} -> {S : Vec TyExp n} -> (e : Exp n₁ T) -> (s : Stack S) ->  (env : Vec (Val TyBool) n₁) -> ((eval e env) |> s) ≡ (exec (compile e) s)
