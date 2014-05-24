@@ -39,15 +39,16 @@ data Code : {n k : ℕ} -> Vec TyExp n -> Vec TyExp k -> Set where
   PUSH  : {T : TyExp} -> {n : ℕ} -> {S : Vec TyExp n} -> Val T -> Code S (T ∷ S)
   ADD   : {n : ℕ} -> {S : Vec TyExp n} -> Code (TyNat ∷ (TyNat ∷ S)) (TyNat ∷ S)
   IF    : {n k : ℕ} -> {S : Vec TyExp n} -> {S' : Vec TyExp k} -> Code S S' -> Code S S' -> Code (TyBool ∷ S) S'
-  LDS   : {n : ℕ} {S : Vec TyExp n} {t : TyExp} -> ℕ -> Code S (t ∷ S)
+  LDS   : {n : ℕ} {S : Vec TyExp n} {t : TyExp} -> (f : Fin n) -> Code S ((lookup f S) ∷ S)
   POP   : {n : ℕ} {S : Vec TyExp n} {t₁ t₂ : TyExp} -> Code (t₁ ∷ (t₂ ∷ S)) (t₁ ∷ S) -- Bit ugly, should be STS instead
 
 data Stack : forall {n : ℕ} -> Vec TyExp n -> Set where
   empty : Stack []
   _|>_ : {n : ℕ} -> {t : TyExp} -> {s : Vec TyExp n} -> (v : Val t) -> (xs : Stack s) -> Stack (t ∷ s)
 
-top : {n : ℕ} -> {t : TyExp} -> {s : Vec TyExp n} -> Stack (t ∷ s) -> Val t
-top (v |> x) = v
+lds : {n₁ : ℕ} -> {s : Vec TyExp n₁} -> (n : Fin n₁) -> Stack s -> Val (lookup n s)
+lds zero (v |> s₁) = v
+lds (suc n₁) (v |> s₁) = lds n₁ s₁
 
 exec : {n k : ℕ} -> {S : Vec TyExp n} -> {S' : Vec TyExp k} -> Code S S' -> Stack S -> Stack S'
 exec skip s = s
@@ -55,17 +56,18 @@ exec (c ++₁ c₁) s = exec c₁ (exec c s)
 exec (PUSH x) s = x |> s
 exec ADD (nat x |> (nat x₁ |> s)) = nat (x + x₁) |> s
 exec (IF c1 c2) (bool true |> s) = exec c1 s
-exec (IF c1 c2) (bool false |> s) = exec c2 s -- (True |> s) = exec c1 s
-exec (LDS n) x = {!!}
+exec (IF c1 c2) (bool false |> s) = exec c2 s
+exec (LDS n) s = (lds n s) |> s
 exec POP (v |> (v₁ |> x)) = v |> x
 
 compile : {n n2 : ℕ} -> {S : Vec TyExp n} -> {T : TyExp } -> Exp n2 T -> Code S ( T ∷ S)
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e₁ ++₁ (compile e ++₁ ADD)
 compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
-compile (var i) = {!!} --LDS 1 -- PUSH (bool true)
+compile (var i) = LDS {!!} --  PUSH (bool true) --  LDS {!!} --LDS 1 -- PUSH (bool true)
 compile (let₁ e₁ e₂) = (compile e₁ ++₁ compile e₂) ++₁ POP
 
+{-
 correct : {T : TyExp} -> {n n₁ : ℕ} -> {S : Vec TyExp n} -> (e : Exp n₁ T) -> (s : Stack S) ->  (env : Vec (Val TyBool) n₁) -> ((eval e env) |> s) ≡ (exec (compile e) s)
 correct (val v) s env = refl
 correct (plus e e₁) s env with correct e s env | correct e₁ s env
@@ -76,7 +78,8 @@ correct (if e e1 e2) s env with correct e s env
 correct (if e e1 e2) s env | refl | .(bool true |> s) | bool true = correct e1 s env
 correct (if e e1 e2) s env | refl | .(bool false |> s) | bool false = correct e2 s env
 correct (var x) s env = {!!}
-correct (let₁ e e₁) s env = {!!}
+correct (let₁ e e₁) s env = {!!} -}
+
 
 {-
 correct (val v) s = refl
