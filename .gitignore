@@ -41,3 +41,9 @@ Record.agda
 Reflection.agda
 
 Size.agda
+
+*.aux
+
+*.log
+
+*.gz

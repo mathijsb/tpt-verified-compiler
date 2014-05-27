@@ -18,7 +18,7 @@ data Val : TyExp -> Set where
 
 data Exp : ℕ -> TyExp -> Set where
   val  : forall {t₁} -> (v : Val t₁) -> Exp zero t₁
-  plus : (e₁ : Exp zero TyNat) -> (e₂ : Exp zero TyNat) -> Exp zero TyNat
+  plus : forall {n} -> (e₁ : Exp n TyNat) -> (e₂ : Exp n TyNat) -> Exp n TyNat
   if   : forall {t} -> (b : Exp zero TyBool) -> (e₁ e₂ : Exp zero t) -> Exp zero t
   var  : forall {n} -> Fin n -> Exp n TyBool
   let₁ : forall {n t} -> Exp n TyBool -> Exp (suc n) t -> Exp n t
@@ -60,9 +60,9 @@ exec (IF c1 c2) (bool false |> s) = exec c2 s
 exec (LDS n) s = (lds n s) |> s
 exec POP (v |> (v₁ |> x)) = v |> x
 
-compile : {n n2 : ℕ} -> {S : Vec TyExp n} -> {T : TyExp } -> Exp n2 T -> Code S ( T ∷ S)
+compile : {n : ℕ} -> {S : Vec TyExp n} -> {T : TyExp } -> Exp n T -> Code S ( T ∷ S)
 compile (val v) = PUSH v
-compile (plus e e₁) = compile e₁ ++₁ (compile e ++₁ ADD)
+compile (plus e e₁) = {!!} --compile e₁ ++₁ (compile e ++₁ ADD)
 compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
 compile (var i) = LDS {!!} --  PUSH (bool true) --  LDS {!!} --LDS 1 -- PUSH (bool true)
 compile (let₁ e₁ e₂) = (compile e₁ ++₁ compile e₂) ++₁ POP
