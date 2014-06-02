@@ -112,9 +112,23 @@ compile (var x) b = LDS b (convertRef x)
 compile (let₁ e e₁) b = compile e true ++₁ (compile e₁ b ++₁ POP)
 
 -- Correct
+stackToEnv : {S : StackContext} -> Stack S -> Env (stackContextToContext S)
+stackToEnv empty = empty
+stackToEnv (append v true s₁) = v |+ stackToEnv s₁
+stackToEnv (append v false s₁) = stackToEnv s₁
+
+correct : {T : TyExp} -> {n : ℕ} -> {S : StackContext} -> (e : Exp n T (stackContextToContext S)) -> (s : Stack S) -> (append (eval e (stackToEnv s)) false s) ≡ (exec (compile e false) s)
+correct (val v) s = refl
+correct (plus e e₁) s = {!!}
+correct (if e e₁ e₂) s = {!!}
+correct (var x) s = ?
+correct (let₁ e e₁) s = {!!}
 
 {-
-correct : {T : TyExp} -> {n : nat} -> {S : List TyExp n} -> (e : Exp T) -> (s : Stack S) -> ((eval e) |> s) ≡ (exec (compile e) s)
+
+Goal: append (lookup₁ (stackToEnv s) x) false s ≡
+      append (lookup₂ s (convertRef x)) false s
+
 correct (val v) s = refl
 correct (plus e e₁) s with correct e s | correct e₁ s
 correct (plus e e₁) s | k | l with (exec (compile e) s) | (exec (compile e₁) s) | (eval e₁)
