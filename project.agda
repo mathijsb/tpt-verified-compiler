@@ -102,14 +102,28 @@ trimStack empty = empty
 trimStack (append v true s₁) = append v true (trimStack s₁)
 trimStack (append v false s₁) = trimStack s₁
 
+lemma : {t : TyExp} -> {S : Γ} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (trimStack s) x) ≡ (slookup s (convertRef x))
+lemma () empty
+lemma r (append v b s₁) = {!!}
+
 correct : {T : TyExp} -> {n : ℕ} -> {S : Γ} -> (e : Exp n T (trimEnv S)) -> (s : Stack S) -> (append (eval e (trimStack s)) false s) ≡ (exec (compile e false) s)
-correct (val v) s = refl
-correct (plus e e₁) s = {!!}
-correct (if e e₁ e₂) s = {!!}
-correct (var x) s = {!!}
-correct (let₁ e e₁) s = {!!}
+correct {T} {zero} {S} (val v) s = refl
+correct {TyNat} {n} {S} (plus e e₁) s with correct e s | correct e₁ s
+... | k | l with (exec (compile e false) s)
+... | m = {!!} 
+correct {T} {n} {S} (if e e₁ e₂) s = {!!}
+correct {T} {n} {S} (var x) s = {!!} 
+correct {T} {n} {S} (let₁ e e₁) s = {!!}
 
 {-
+
+Goal: append
+      (eval (plus e e₁) (trimStack s) | eval e (trimStack s)
+       | eval e₁ (trimStack s))
+      false s
+      ≡
+      exec (ADD false)
+      (exec (compile e₁ false) (exec (compile e false) s))
 
 Goal: append (lookup₁ (stackToEnv s) x) false s ≡
       append (lookup₂ s (convertRef x)) false s
