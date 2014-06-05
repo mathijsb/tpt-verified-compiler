@@ -61,8 +61,8 @@ data Code : Γ -> Γ -> Set where
     PUSH  : forall {S t b} -> Val t -> Code S (< b , t > ∷ S)
     LDS   : forall {S t b} -> (f : Ref S t) -> Code S (< b , t > ∷ S)
     POP   : forall {S t₁ t₂ b} -> Code (< b , t₁ > ∷ (< true , t₂ > ∷ S)) (< b , t₁ > ∷ S)
-    ADD   : forall {S b₁ b₂ b₃} -> Code (< b₁ , TyNat > ∷ (< b₂ , TyNat > ∷ S)) (< b₃ , TyNat > ∷ S)
-    IF    : forall {S S'} -> {b : Bool} -> Code S S' -> Code S S' -> Code (< b , TyBool > ∷ S) S'
+    ADD   : forall {S b} -> Code (< false , TyNat > ∷ (< false , TyNat > ∷ S)) (< b , TyNat > ∷ S)
+    IF    : forall {S S'} -> Code S S' -> Code S S' -> Code (< false , TyBool > ∷ S) S'
     skip  : {S S' : Γ} -> Code S S
     _++₁_ : forall {S S' S''} -> Code S S' -> Code S' S'' -> Code S S''
 
@@ -87,12 +87,12 @@ convertRef {< true , x₁ > ∷ S} Top = Top
 convertRef {< true , x₁ > ∷ S} (Pop s) = Pop (convertRef s)
 convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
 
-compile : forall {S t n} -> (e : Exp n t (trimEnv S)) -> (b : Bool) -> Code S (< b , t > ∷ S)
-compile (val v) b = PUSH v
-compile (plus e e₁) b = compile e false ++₁ (compile e₁ false ++₁ ADD)
-compile (if e e₁ e₂) b = compile e b ++₁ IF (compile e₁ b) (compile e₂ b)
-compile (var x) b = LDS (convertRef x)
-compile (let₁ e e₁) b = compile e true ++₁ (compile e₁ b ++₁ POP)
+compile : forall {S t n b} -> (e : Exp n t (trimEnv S)) -> Code S (< b , t > ∷ S)
+compile (val v) = PUSH v
+compile (plus e e₁) = compile e ++₁ (compile e₁ ++₁ ADD)
+compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
+compile (var x) = LDS (convertRef x)
+compile (let₁ e e₁) = compile e ++₁ (compile e₁ ++₁ POP)
 
 trimStack : forall {S} -> Stack S -> Stack (trimEnv S)
 trimStack {[]} x = empty
@@ -103,13 +103,17 @@ lemma : forall {S t} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (tr
 lemma () empty
 lemma e (v |> s₁) = {!!}
 
+{-
 correct : forall {S t n} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e false) s)
 correct (val v) s = refl
-correct (plus e e₁) s = {!!}
+correct (plus e e₁) s with correct e s | correct e₁ s
+... | p1 | p2 with (exec (compile e) s) | (exec (compile e₁) s) | (eval e₁)
+... | e1 | e2 | ev1 = ?
 correct (if e e₁ e₂) s = {!!}
 correct (var x) s with lemma x s
 ... | k = {!!}
 correct (let₁ e e₁) s = {!!}
+-}
 
 {-
 
