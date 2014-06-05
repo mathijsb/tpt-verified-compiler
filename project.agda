@@ -30,7 +30,7 @@ data Val : TyExp -> Set where
 
 data Stack : Γ -> Set where
   empty : Stack []
-  append : {t : TyExp} -> {s : Γ} -> (v : Val t) -> (b : Bool) -> (xs : Stack s) -> Stack (< b , t > ∷ s)
+  _|>_ : forall {t s b} -> (v : Val t) -> (xs : Stack s) -> Stack (< b , t > ∷ s)
 
 data Ref : Γ -> TyExp -> Set where
  Top : forall {G u} -> Ref (u ∷ G) (snd u)
@@ -43,13 +43,13 @@ data Exp : ℕ -> TyExp -> Γ -> Set where
   var  : forall {n ctx t} -> Ref ctx t -> Exp n t ctx
   let₁ : forall {n t₁ t₂ ctx} -> Exp n t₁ ctx -> Exp (suc n) t₂ (< true , t₁ >  ∷ ctx) -> Exp n t₂ ctx
 
-slookup : {S : Γ} -> {t : TyExp} -> Stack S -> Ref S t -> Val t
-slookup (append v b a) Top = v
-slookup (append v b a) (Pop b₁) = slookup a b₁
+slookup : forall {S t} -> Stack S -> Ref S t -> Val t
+slookup (v |> xs) Top = v
+slookup (v |> xs) (Pop b₁) = slookup xs b₁
 
-eval : forall { t₁ n ctx} -> (e : Exp n t₁ ctx) -> Stack ctx -> Val t₁
+eval : forall {t₁ n ctx} -> (e : Exp n t₁ ctx) -> Stack ctx -> Val t₁
 eval (var x) env = slookup env x
-eval (let₁ e₁ e₂) env = eval e₂ (append (eval e₁ env) true env)
+eval (let₁ e₁ e₂) env = eval e₂ ((eval e₁ env) |> env)
 eval (val v) env = v
 eval (plus e₁ e₂) env with (eval e₁ env) | (eval e₂ env)
 eval (plus e₁ e₂) env | nat x₁ | nat x₂ = nat (x₁ + x₂)
@@ -58,21 +58,21 @@ eval (if e e₁ e₂) env | bool true = eval e₁ env
 eval (if e e₁ e₂) env | bool false = eval e₂ env
 
 data Code : Γ -> Γ -> Set where
-    PUSH  : {t : TyExp} -> {S : Γ} -> (b : Bool) -> Val t -> Code S (< b , t > ∷ S)
-    LDS   : {t : TyExp} -> {S : Γ} -> (b : Bool) -> (f : Ref S t) -> Code S (< b , t > ∷ S)
-    POP   : {t₁ t₂ : TyExp} -> {S : Γ} -> {b₁ b₂ : Bool} -> Code (< b₁ , t₁ > ∷ (< b₂ , t₂ > ∷ S)) (< b₁ , t₁ > ∷ S)
-    ADD   : {S : Γ} -> {b₁ b₂ b₃ : Bool} -> Code (< b₁ , TyNat > ∷ (< b₂ , TyNat > ∷ S)) (< b₃ , TyNat > ∷ S)
-    IF    : {S S' : Γ} -> {b : Bool} -> Code S S' -> Code S S' -> Code (< b , TyBool > ∷ S) S'
+    PUSH  : forall {S t b} -> Val t -> Code S (< b , t > ∷ S)
+    LDS   : forall {S t b} -> (f : Ref S t) -> Code S (< b , t > ∷ S)
+    POP   : forall {S t₁ t₂ b} -> Code (< b , t₁ > ∷ (< true , t₂ > ∷ S)) (< b , t₁ > ∷ S)
+    ADD   : forall {S b₁ b₂ b₃} -> Code (< b₁ , TyNat > ∷ (< b₂ , TyNat > ∷ S)) (< b₃ , TyNat > ∷ S)
+    IF    : forall {S S'} -> {b : Bool} -> Code S S' -> Code S S' -> Code (< b , TyBool > ∷ S) S'
     skip  : {S S' : Γ} -> Code S S
-    _++₁_ : {S0 S1 S2 : Γ} -> Code S0 S1 -> Code S1 S2 -> Code S0 S2
+    _++₁_ : forall {S S' S''} -> Code S S' -> Code S' S'' -> Code S S''
 
 exec : {S S' : Γ} -> Code S S' -> Stack S -> Stack S'
-exec (PUSH b x) s = append x b s
-exec (LDS b f) s = append (slookup s f) b s
-exec (POP {t₁} {t₂} {S} {b₁} {b₂}) (append v .b₁ (append v₁ .b₂ s)) = append v b₁ s
-exec (ADD {S} {b₁} {b₂} {b₃}) (append (nat x) .b₁ (append (nat x₁) .b₂ s)) = append (nat (x + x₁)) b₃ s
-exec (IF c c₁) (append (bool true) b s) = exec c s
-exec (IF c c₁) (append (bool false) b s) = exec c₁ s
+exec (PUSH x) s = x |> s
+exec (LDS f) s = (slookup s f) |> s
+exec POP (v |> (v₁ |> s)) = v |> s
+exec ADD (nat x |> (nat x₁ |> s)) = (nat (x + x₁)) |> s
+exec (IF c₁ c₂) (bool true |> s) = exec c₁ s
+exec (IF c₁ c₂) (bool false |> s) = exec c₂ s
 exec skip s = s
 exec (c ++₁ c₁) s = exec c₁ (exec c s)
 
@@ -81,37 +81,35 @@ trimEnv [] = []
 trimEnv (< true , x₁ > ∷ s) = < true , x₁ > ∷ trimEnv s
 trimEnv (< false , x₁ > ∷ s) = trimEnv s
 
-convertRef : {S : Γ} -> {T : TyExp} -> Ref (trimEnv S) T -> Ref S T
+convertRef : forall {S t} -> Ref (trimEnv S) t -> Ref S t
 convertRef {[]} ()
 convertRef {< true , x₁ > ∷ S} Top = Top
 convertRef {< true , x₁ > ∷ S} (Pop s) = Pop (convertRef s)
 convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
 
-compile : {n : ℕ} -> {S : Γ} -> {T : TyExp} -> (e : Exp n T (trimEnv S)) -> (b : Bool) -> Code S (< b , T > ∷ S)
-compile (val v) b = PUSH b v
+compile : forall {S t n} -> (e : Exp n t (trimEnv S)) -> (b : Bool) -> Code S (< b , t > ∷ S)
+compile (val v) b = PUSH v
 compile (plus e e₁) b = compile e false ++₁ (compile e₁ false ++₁ ADD)
 compile (if e e₁ e₂) b = compile e b ++₁ IF (compile e₁ b) (compile e₂ b)
-compile (var x) b = LDS b (convertRef x)
+compile (var x) b = LDS (convertRef x)
 compile (let₁ e e₁) b = compile e true ++₁ (compile e₁ b ++₁ POP)
 
--- Correct
-trimStack : {S : Γ} -> Stack S -> Stack (trimEnv S)
-trimStack empty = empty
-trimStack (append v true s₁) = append v true (trimStack s₁)
-trimStack (append v false s₁) = trimStack s₁
+trimStack : forall {S} -> Stack S -> Stack (trimEnv S)
+trimStack {[]} x = empty
+trimStack {< true , x₁ > ∷ S} (v |> x₂) = v |> (trimStack x₂)
+trimStack {< false , x₁ > ∷ S} (v |> x₂) = trimStack x₂
 
-lemma : {t : TyExp} -> {S : Γ} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (trimStack s) x) ≡ (slookup s (convertRef x))
+lemma : forall {S t} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (trimStack s) x) ≡ (slookup s (convertRef x))
 lemma () empty
-lemma r (append v b s₁) = {!!}
+lemma e (v |> s₁) = {!!}
 
-correct : {T : TyExp} -> {n : ℕ} -> {S : Γ} -> (e : Exp n T (trimEnv S)) -> (s : Stack S) -> (append (eval e (trimStack s)) false s) ≡ (exec (compile e false) s)
-correct {T} {zero} {S} (val v) s = refl
-correct {TyNat} {n} {S} (plus e e₁) s with correct e s | correct e₁ s
-... | k | l with (exec (compile e false) s)
-... | m = {!!} 
-correct {T} {n} {S} (if e e₁ e₂) s = {!!}
-correct {T} {n} {S} (var x) s = {!!}
-correct {T} {n} {S} (let₁ e e₁) s = {!!}
+correct : forall {S t n} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e false) s)
+correct (val v) s = refl
+correct (plus e e₁) s = {!!}
+correct (if e e₁ e₂) s = {!!}
+correct (var x) s with lemma x s
+... | k = {!!}
+correct (let₁ e e₁) s = {!!}
 
 {-
 
