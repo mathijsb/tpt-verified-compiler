@@ -103,17 +103,13 @@ lemma : forall {S t} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (tr
 lemma () empty
 lemma e (v |> s₁) = {!!}
 
-{-
-correct : forall {S t n} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e false) s)
+correct : forall {S t n b} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile {_} {_} {_} {b} e) s)
 correct (val v) s = refl
-correct (plus e e₁) s with correct e s | correct e₁ s
-... | p1 | p2 with (exec (compile e) s) | (exec (compile e₁) s) | (eval e₁)
-... | e1 | e2 | ev1 = ?
+correct (plus e e₁) s = {!!}
 correct (if e e₁ e₂) s = {!!}
 correct (var x) s with lemma x s
 ... | k = {!!}
 correct (let₁ e e₁) s = {!!}
--}
 
 {-
 
