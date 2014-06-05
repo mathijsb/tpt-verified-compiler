@@ -1,4 +1,3 @@
-
 module project where
 
 open import Data.Bool
@@ -62,7 +61,7 @@ data Code : Γ -> Γ -> Set where
     PUSH  : {t : TyExp} -> {S : Γ} -> (b : Bool) -> Val t -> Code S (< b , t > ∷ S)
     LDS   : {t : TyExp} -> {S : Γ} -> (b : Bool) -> (f : Ref S t) -> Code S (< b , t > ∷ S)
     POP   : {t₁ t₂ : TyExp} -> {S : Γ} -> {b₁ b₂ : Bool} -> Code (< b₁ , t₁ > ∷ (< b₂ , t₂ > ∷ S)) (< b₁ , t₁ > ∷ S)
-    ADD   : {S : Γ} -> {b₁ b₂ : Bool} -> (b : Bool) -> Code (< b₁ , TyNat > ∷ (< b₂ , TyNat > ∷ S)) (< b , TyNat > ∷ S)
+    ADD   : {S : Γ} -> {b₁ b₂ b₃ : Bool} -> Code (< b₁ , TyNat > ∷ (< b₂ , TyNat > ∷ S)) (< b₃ , TyNat > ∷ S)
     IF    : {S S' : Γ} -> {b : Bool} -> Code S S' -> Code S S' -> Code (< b , TyBool > ∷ S) S'
     skip  : {S S' : Γ} -> Code S S
     _++₁_ : {S0 S1 S2 : Γ} -> Code S0 S1 -> Code S1 S2 -> Code S0 S2
@@ -71,7 +70,7 @@ exec : {S S' : Γ} -> Code S S' -> Stack S -> Stack S'
 exec (PUSH b x) s = append x b s
 exec (LDS b f) s = append (slookup s f) b s
 exec (POP {t₁} {t₂} {S} {b₁} {b₂}) (append v .b₁ (append v₁ .b₂ s)) = append v b₁ s
-exec (ADD {S} {b₁} {b₂} b) (append (nat x) .b₁ (append (nat x₁) .b₂ s)) = append (nat (x + x₁)) b s
+exec (ADD {S} {b₁} {b₂} {b₃}) (append (nat x) .b₁ (append (nat x₁) .b₂ s)) = append (nat (x + x₁)) b₃ s
 exec (IF c c₁) (append (bool true) b s) = exec c s
 exec (IF c c₁) (append (bool false) b s) = exec c₁ s
 exec skip s = s
@@ -90,8 +89,7 @@ convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
 
 compile : {n : ℕ} -> {S : Γ} -> {T : TyExp} -> (e : Exp n T (trimEnv S)) -> (b : Bool) -> Code S (< b , T > ∷ S)
 compile (val v) b = PUSH b v
-compile (plus e e₁) true = compile e false ++₁ (compile e₁ false ++₁ (ADD true))
-compile (plus e e₁) false = compile e false ++₁ (compile e₁ false ++₁ (ADD false))
+compile (plus e e₁) b = compile e false ++₁ (compile e₁ false ++₁ ADD)
 compile (if e e₁ e₂) b = compile e b ++₁ IF (compile e₁ b) (compile e₂ b)
 compile (var x) b = LDS b (convertRef x)
 compile (let₁ e e₁) b = compile e true ++₁ (compile e₁ b ++₁ POP)
@@ -112,7 +110,7 @@ correct {TyNat} {n} {S} (plus e e₁) s with correct e s | correct e₁ s
 ... | k | l with (exec (compile e false) s)
 ... | m = {!!} 
 correct {T} {n} {S} (if e e₁ e₂) s = {!!}
-correct {T} {n} {S} (var x) s = {!!} 
+correct {T} {n} {S} (var x) s = {!!}
 correct {T} {n} {S} (let₁ e e₁) s = {!!}
 
 {-
