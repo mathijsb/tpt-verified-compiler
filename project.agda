@@ -100,15 +100,18 @@ trimStack {< true , x₁ > ∷ S} (v |> x₂) = v |> (trimStack x₂)
 trimStack {< false , x₁ > ∷ S} (v |> x₂) = trimStack x₂
 
 lemma : forall {S t} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (trimStack s) x) ≡ (slookup s (convertRef x))
-lemma () empty
-lemma e (v |> s₁) = {!!}
+lemma {[]} () s
+lemma {< true , t > ∷ S} Top (v |> s) = refl
+lemma {< true , x₁ > ∷ S} (Pop e) (v |> s) = lemma e s
+lemma {< false , x₁ > ∷ S} e (v |> s) = lemma e s
 
 correct : forall {S t n b} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile {_} {_} {_} {b} e) s)
-correct (val v) s = refl
-correct (plus e e₁) s = {!!}
-correct (if e e₁ e₂) s = {!!}
-correct (var x) s with lemma x s
-... | k = {!!}
+correct {S} (val v) s = refl
+correct {S} (plus e e₁) s = {!!}
+correct {S} (if e e₁ e₂) s = {!!}
+correct {S} (var x) s with lemma x s
+... | p with slookup (trimStack s) x | slookup s (convertRef x) 
+correct (var x) s | refl | .l | l = refl
 correct (let₁ e e₁) s = {!!}
 
 {-
