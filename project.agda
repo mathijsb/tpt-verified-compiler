@@ -60,11 +60,6 @@ eval (let₁ e₁ e₂) env = eval e₂ ((eval e₁ env) |> env)
 eval (val v) env = v
 eval (plus e₁ e₂) env = plus₁ (eval e₁ env) (eval e₂ env)
 eval (if e e₁ e₂) env = cond (eval e env) (eval e₁ env) (eval e₂ env) 
-{-
-eval (if e e₁ e₂) env with (eval e env) 
-eval (if e e₁ e₂) env | bool true = eval e₁ env
-eval (if e e₁ e₂) env | bool false = eval e₂ env
--}
 
 data Code : Γ -> Γ -> Set where
     PUSH  : forall {S t b} -> Val t -> Code S (< b , t > ∷ S)
