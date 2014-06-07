@@ -36,12 +36,12 @@ data Ref : Γ -> TyExp -> Set where
  Top : forall {G u} -> Ref (u ∷ G) (snd u)
  Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
 
-data Exp : ℕ -> TyExp -> Γ -> Set where
-  val  : forall {t₁ ctx} -> (v : Val t₁) -> Exp zero t₁ ctx
-  plus : forall {n ctx} -> (e₁ : Exp n TyNat ctx) -> (e₂ : Exp n TyNat ctx) -> Exp n TyNat ctx
-  if   : forall {n t ctx} -> (b : Exp n TyBool ctx) -> (e₁ e₂ : Exp n t ctx) -> Exp n t ctx
-  var  : forall {n ctx t} -> Ref ctx t -> Exp n t ctx
-  let₁ : forall {n t₁ t₂ ctx} -> Exp n t₁ ctx -> Exp (suc n) t₂ (< true , t₁ >  ∷ ctx) -> Exp n t₂ ctx
+data Exp : ℕ -> TyExp -> Γ -> Bool -> Set where
+  val  : forall {t₁ ctx b} -> (v : Val t₁) -> Exp zero t₁ ctx b
+  plus : forall {n ctx b} -> (e₁ : Exp n TyNat ctx false) -> (e₂ : Exp n TyNat ctx false) -> Exp n TyNat ctx b
+  if   : forall {n t ctx b} -> (c : Exp n TyBool ctx false) -> (e₁ e₂ : Exp n t ctx b) -> Exp n t ctx b
+  var  : forall {n ctx t b} -> Ref ctx t -> Exp n t ctx b
+  let₁ : forall {n t₁ t₂ ctx b} -> Exp n t₁ ctx true -> Exp (suc n) t₂ (< true , t₁ >  ∷ ctx) b -> Exp n t₂ ctx b
 
 slookup : forall {S t} -> Stack S -> Ref S t -> Val t
 slookup (v |> xs) Top = v
@@ -54,7 +54,7 @@ cond (bool false) b c = c
 plus₁ : Val TyNat -> Val TyNat -> Val TyNat
 plus₁ (nat x) (nat x₁) = nat (x + x₁)
 
-eval : forall {t₁ n ctx} -> (e : Exp n t₁ ctx) -> Stack ctx -> Val t₁
+eval : forall {t₁ n ctx b} -> (e : Exp n t₁ ctx b) -> Stack ctx -> Val t₁
 eval (var x) env = slookup env x
 eval (let₁ e₁ e₂) env = eval e₂ ((eval e₁ env) |> env)
 eval (val v) env = v
@@ -91,7 +91,7 @@ convertRef {< true , x₁ > ∷ S} Top = Top
 convertRef {< true , x₁ > ∷ S} (Pop s) = Pop (convertRef s)
 convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
 
-compile : forall {b S t n} -> (e : Exp n t (trimEnv S)) -> Code S (< b , t > ∷ S)
+compile : forall {b S t n} -> (e : Exp n t (trimEnv S) b) -> Code S (< b , t > ∷ S)
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e ++₁ (compile e₁ ++₁ ADD)
 compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
@@ -109,22 +109,22 @@ lemma {< true , t > ∷ S} Top (v |> s) = refl
 lemma {< true , x₁ > ∷ S} (Pop e) (v |> s) = lemma e s
 lemma {< false , x₁ > ∷ S} e (v |> s) = lemma e s
 
-correct : forall {b S t n} -> (e : Exp n t (trimEnv S)) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile {b} {_} {_} {_} e) s)
+correct : forall {b S t n} -> (e : Exp n t (trimEnv S) b) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
-correct {b} (plus e e₁) s with correct {false} e s
-... | p1 with (eval e (trimStack s)) | (exec (compile {false} e) s)
-correct (plus e e₁) s | refl | p3 | .(p3 |> s) with correct {false} e₁ (_|>_ {false} p3 s)
-... | p2 with (eval e₁ (trimStack s)) | exec (compile {false} e₁) (_|>_ {false} p3 s) 
+correct (plus e e₁) s with correct e s
+... | p1 with eval e (trimStack s) | exec (compile e) s
+correct (plus e e₁) s | refl | p3 | .(p3 |> s) with correct e₁ (_|>_ {false} p3 s)
+... | p2 with eval e₁ (trimStack s) | exec (compile e₁) (_|>_ {false} p3 s) 
 correct (plus e e₁) s | refl | nat x | .(nat x |> s) | refl | nat x₁ | .(nat x₁ |> (nat x |> s)) = refl 
-correct (if e e₁ e₂) s with correct {false} e s
-... | p1 with (exec (compile {false} e) s) | eval e (trimStack s)
+correct (if e e₁ e₂) s with correct e s
+... | p1 with exec (compile e) s | eval e (trimStack s)
 correct (if e e₁ e₂) s | refl | .(bool true |> s) | bool true = correct e₁ s
 correct (if e e₁ e₂) s | refl | .(bool false |> s) | bool false = correct e₂ s
 correct (var x) s with lemma x s
 ... | p with slookup (trimStack s) x | slookup s (convertRef x) 
 correct (var x) s | refl | .l | l = refl
-correct {b} (let₁ e e₁) s with correct {true} e s
-... | p1 with (exec (compile {true} e) s) | eval e (trimStack s)
-correct {b} (let₁ e e₁) s | refl | .(p3 |> s) | p3 with correct {b} e₁ (_|>_ {true} p3 s)
-... | p4 with (exec (compile {b} e₁) (_|>_ {true} p3 s)) | eval e₁ (p3 |> trimStack s)
-correct {b} (let₁ e e₁) s | refl | .(p3 |> s) | p3 | refl | .(p6 |> (p3 |> s)) | p6 = refl
+correct (let₁ e e₁) s with correct e s
+... | p1 with exec (compile e) s | eval e (trimStack s)
+correct (let₁ e e₁) s | refl | .(p3 |> s) | p3 with correct e₁ (_|>_ {true} p3 s)
+... | p4 with exec (compile e₁) (_|>_ {true} p3 s) | eval e₁ (p3 |> trimStack s)
+correct (let₁ e e₁) s | refl | .(p3 |> s) | p3 | refl | .(p6 |> (p3 |> s)) | p6 = refl
