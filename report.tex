@@ -79,6 +79,7 @@
 %----------------------------------------------------------------------------------------
 
 \section{abstract}
+In this paper we will demonstrate how to build a compiler and proof it's correctness using dependent types. This work is based on the paper "A type-correct, stack-safe, provably correct expression compiler in Epigram". We will implement a compiler for an extended language an show that the statements made in this paper still hold.
 \section{Introduction}
 \section{The First Semantics : eval}
 \subsection{Type preservation is the type of the interpreter}
@@ -91,5 +92,15 @@
 \section{Compiler Correctness}
 \section{Conclusion}
 \section{Related work} %required by assignment description
+A Certified Type-Preserving Compiler from Lambda Calculus to
+Assembly Language \cite{Chlipala}. Here the author presents a certified compiler for a language similar to ours, with a machine-checked correctness proof written in Coq.
 
+\begin{thebibliography}{9}
+\bibitem{Chlipala}
+	Adam Chlipala,
+  	\emph{A Certified Type-Preserving Compiler from Lambda Calculus to
+Assembly Language}.
+  	Proceedings PLDI '07, p54-65, New York, 2007.
+	
+\end{thebibliography}
 \end{document}
