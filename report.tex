@@ -89,8 +89,9 @@ In this paper we will describe an extension to the type-correct, stack-safe, pro
 \end{itemize}
 
 \section{Introduction}
+"A type-correct, stack-safe, provably correct expression compiler in Epigram" by McKinna and Wright is a nice, practical paper about proving the correctness of a simple compiler in a dependently typed programming language. In their paper, the authors use two semantics, one being this compiler, and then proof that both semantics result in the same value for every possible program. Their language consists only of boolean and integer values, plus and if-then-else. We will extend their work to show that this proof can also be done when we extend the language with let-bindings.
 \section{The First Semantics : eval}
-We start by defining our language. It consists of a simple, typed labda calculus.\\
+We start by defining our language. It consists of a simple, typed labda calculus. This language is based on the one in the paper by McKinna, but extended with let-bindings.\\
 \\
 \ttfamily
 data TyExp : Set where\\
@@ -101,8 +102,9 @@ data Val : TyExp $\rightarrow$ Set where\\
   nat : $\mathbb{N}$ $\rightarrow$ Val TyNat\\
   bool : Bool $\rightarrow$ Val TyBool\\
 \normalfont
-
+In order to make these let-bindings work, we will first construct a context. This context is represented by a list of tuples holding a boolean and a TyExp \\
 \ttfamily
+\\
 -- ** Tuples **\\
 
 data \_x\_ (A B : Set) : Set where\\
@@ -123,7 +125,11 @@ $\Gamma$ = List (Bool x TyExp)\\
 data Stack : $\Gamma$ $\rightarrow$ Set where\\
   empty : Stack []\\
   \_$\rhd$\_ : $\forall$ {b t s} $\rightarrow$ (v:Val t) $\rightarrow$ (xs : Stack s) $\rightarrow$ Stack (<b,t> :: s)\\
-
+  
+\normalfont
+Next, we define references.\\
+\ttfamily
+\\
 -- ** References **\\
 
 data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
@@ -134,29 +140,31 @@ slookup : $\forall$ {S t} $\rightarrow$ Stack S $\rightarrow$ Ref S t $\rightarr
 slookup (v $\rhd$ xs) Top = v\\
 slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
--- ** Ref **\\
-
-data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
- Top : $\forall$ {G u} $\rightarrow$ Ref (u :: G) (snd u)\\
- Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
-
+\normalfont
+Lastly we need to add the let binding to the expressions.\\
+\\
+\ttfamily
 -- ** Exp **\\
 
 data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set where\\
   var  : $\forall$ {ctx t b} $\rightarrow$ Ref ctx t $\rightarrow$ Exp t ctx b\\
   let$_1$ : $\forall$ {ctx t$_1$ t$_2$ b} $\rightarrow$ Exp t$_1$ ctx true $\rightarrow$ Exp t$_2$ (<true,t$_1$>  ::ctx) b $\rightarrow$ Exp t$_2$ ctx b\\
 
-
+\normalfont
+Now the evaluation function. An environment is now passed around. When evaluating a var expression, we can look it up in this environment and return it. When we evaluate a let-binding, we first evaluate $e_1$, and push it into the environment. We use this updated environment to evaluate $e_2$.\\
+\\
+\ttfamily
 -- ** Eval **\\
 
 eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
 eval (var x) env = slookup env x\\
 eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
 \normalfont
-\subsection{Type preservation is the type of the interpreter}
 \section{The Second Semantics : compile \& exec}
-
+The semantics we are about to define is the actual compiler we want to proof to be correct. Only the extensions that are needed for let-bindings are shown here. For the full compiler and evaluator, refer to the source code.
 \subsection{Specifying intermediate code}
+The code needs to accommodate let-bindings. This requires the stack-operations Load from Stack and Pop Stack.\\
+\\
 \ttfamily
 -- ** Code **
 
@@ -166,6 +174,8 @@ data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 \normalfont
 
 \subsection{Implementing an Interpreter for Intermediate Code}
+The execution function is extended accordingly.\\
+\\
 \ttfamily
 -- ** Exec **
 
@@ -174,6 +184,7 @@ exec (LDS f) s = (slookup s f) $\rhd$ s\\
 exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
 \normalfont
 \subsection{Converting between contexts}
+
 \ttfamily
 -- ** Converting between contexts **
 
@@ -190,6 +201,9 @@ convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
 \normalfont
 
 \subsection{Implementing the compiler to intermediate code}
+For the actual compiler, we compile a variable expression to loading it's value from stack.\\
+Let-bindings require for the bound expression to be evaluated, then popped, and then for evaluation of the body, now that the boud expression is available.\\
+\\
 \ttfamily
 -- ** Compile ** 
 
@@ -223,6 +237,7 @@ correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 with correct e$_1$ (\_$
 correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 | refl | .(p6 $\rhd$ (p3 $\rhd$ s)) | p6 = refl\\
 \normalfont
 \section{Conclusion}
+We have indeed seen that it is possible to prove correctness for the defined language. The proof however is not all that trivial. In theory, it should be possible to construct a proof for a far more elaborate labda-calculus, but the proof gets really complicated, really fast. When comparing our work to previous, it is evident that adding just let-bindings makes matters much worse, proof wise.
 \section{Related work} %required by assignment description
 A Certified Type-Preserving Compiler from Lambda Calculus to
 Assembly Language \cite{Chlipala}. Here the author presents a certified compiler for a language similar to ours, with a machine-checked correctness proof written in Coq.
