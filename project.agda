@@ -36,12 +36,12 @@ data Ref : Γ -> TyExp -> Set where
  Top : forall {G u} -> Ref (u ∷ G) (snd u)
  Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
 
-data Exp : ℕ -> TyExp -> Γ -> Bool -> Set where
-  val  : forall {t₁ ctx b} -> (v : Val t₁) -> Exp zero t₁ ctx b
-  plus : forall {n ctx b} -> (e₁ : Exp n TyNat ctx false) -> (e₂ : Exp n TyNat ctx false) -> Exp n TyNat ctx b
-  if   : forall {n t ctx b} -> (c : Exp n TyBool ctx false) -> (e₁ e₂ : Exp n t ctx b) -> Exp n t ctx b
-  var  : forall {n ctx t b} -> Ref ctx t -> Exp n t ctx b
-  let₁ : forall {n t₁ t₂ ctx b} -> Exp n t₁ ctx true -> Exp (suc n) t₂ (< true , t₁ >  ∷ ctx) b -> Exp n t₂ ctx b
+data Exp : TyExp -> Γ -> Bool -> Set where
+  val  : forall {t₁ ctx b} -> (v : Val t₁) -> Exp t₁ ctx b
+  plus : forall {ctx b} -> (e₁ : Exp TyNat ctx false) -> (e₂ : Exp TyNat ctx false) -> Exp TyNat ctx b
+  if   : forall {t ctx b} -> (c : Exp TyBool ctx false) -> (e₁ e₂ : Exp t ctx b) -> Exp t ctx b
+  var  : forall {ctx t b} -> Ref ctx t -> Exp t ctx b
+  let₁ : forall {t₁ t₂ ctx b} -> Exp t₁ ctx true -> Exp t₂ (< true , t₁ >  ∷ ctx) b -> Exp t₂ ctx b
 
 slookup : forall {S t} -> Stack S -> Ref S t -> Val t
 slookup (v |> xs) Top = v
@@ -54,7 +54,7 @@ cond (bool false) b c = c
 plus₁ : Val TyNat -> Val TyNat -> Val TyNat
 plus₁ (nat x) (nat x₁) = nat (x + x₁)
 
-eval : forall {t₁ n ctx b} -> (e : Exp n t₁ ctx b) -> Stack ctx -> Val t₁
+eval : forall {t₁ ctx b} -> (e : Exp t₁ ctx b) -> Stack ctx -> Val t₁
 eval (var x) env = slookup env x
 eval (let₁ e₁ e₂) env = eval e₂ ((eval e₁ env) |> env)
 eval (val v) env = v
@@ -91,7 +91,7 @@ convertRef {< true , x₁ > ∷ S} Top = Top
 convertRef {< true , x₁ > ∷ S} (Pop s) = Pop (convertRef s)
 convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
 
-compile : forall {b S t n} -> (e : Exp n t (trimEnv S) b) -> Code S (< b , t > ∷ S)
+compile : forall {b S t} -> (e : Exp t (trimEnv S) b) -> Code S (< b , t > ∷ S)
 compile (val v) = PUSH v
 compile (plus e e₁) = compile e ++₁ (compile e₁ ++₁ ADD)
 compile (if e e₁ e₂) = compile e ++₁ IF (compile e₁) (compile e₂)
@@ -109,7 +109,7 @@ lemma {< true , t > ∷ S} Top (v |> s) = refl
 lemma {< true , x₁ > ∷ S} (Pop e) (v |> s) = lemma e s
 lemma {< false , x₁ > ∷ S} e (v |> s) = lemma e s
 
-correct : forall {b S t n} -> (e : Exp n t (trimEnv S) b) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e) s)
+correct : forall {b S t} -> (e : Exp t (trimEnv S) b) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e) s)
 correct (val v) s = refl
 correct (plus e e₁) s with correct e s
 ... | p1 with eval e (trimStack s) | exec (compile e) s
