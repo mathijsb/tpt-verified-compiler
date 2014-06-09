@@ -22,6 +22,7 @@
 \documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
 
 \usepackage{dirtree}
+\usepackage{listings}
 
 \usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
 \usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
@@ -87,137 +88,136 @@ In this paper we will describe an extension to the type-correct, stack-safe, pro
 
 \section{Introduction}
 \section{The First Semantics : eval}
+\ttfamily
+-- ** Types \& values **\\
+\\
+data TyExp : Set where\\
+  TyNat : TyExp\\
+  TyBool : TyExp\\
 
--- ** Types & values **
+data Val : TyExp $\rightarrow$ Set where\\
+  nat : $\mathbb{N}$ $\rightarrow$ Val TyNat\\
+  bool : Bool $\rightarrow$ Val TyBool\\
 
-data TyExp : Set where
-  TyNat  : TyExp
-  TyBool : TyExp
+-- ** Tuples **\\
 
-data Val : TyExp -> Set where
-  nat : ℕ -> Val TyNat
-  bool : Bool -> Val TyBool
+data \_x\_ (A B : Set) : Set where\\
+  <\_,\_> : A $\rightarrow$ B $\rightarrow$ A x B\\
 
--- ** Tuples **
+fst : {A B : Set} $\rightarrow$ A x B $\rightarrow$ A\\
+fst < x , y > = x\\
 
-data _×_ (A B : Set) : Set where
-  <_,_> : A -> B -> A × B
+snd : {A B : Set} $\rightarrow$ A x B $\rightarrow$ B\\
+snd < x , y > = y\\
 
-fst : {A B : Set} -> A × B -> A
-fst < x , y > = x
+-- ** Context **\\
 
-snd : {A B : Set} -> A × B -> B
-snd < x , y > = y
+$\Gamma$ = List (Bool x TyExp)\\
 
--- ** Context **
+-- ** Stack **\\
 
-Γ = List (Bool × TyExp)
+data Stack : $\Gamma$ $\rightarrow$ Set where\\
+  empty : Stack []\\
+  \_$\rhd$\_ : $\forall$ {b t s} $\rightarrow$ (v:Val t) $\rightarrow$ (xs : Stack s) $\rightarrow$ Stack (<b,t> :: s)\\
 
--- ** Stack **
+-- ** References **\\
 
-data Stack : Γ -> Set where
-  empty : Stack []
-  _|>_ : forall {b t s} -> (v : Val t) -> (xs : Stack s) -> Stack (< b , t > ∷ s)
+data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
+ Top : $\forall$ {G u} $\rightarrow$ Ref (u :: G) (snd u)\\
+ Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
 
--- ** References **
+slookup : $\forall$ {S t} $\rightarrow$ Stack S $\rightarrow$ Ref S t $\rightarrow$ Val t\\
+slookup (v $\rhd$ xs) Top = v\\
+slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
-data Ref : Γ -> TyExp -> Set where
- Top : forall {G u} -> Ref (u ∷ G) (snd u)
- Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
+-- ** Ref **\\
 
-slookup : forall {S t} -> Stack S -> Ref S t -> Val t
-slookup (v |> xs) Top = v
-slookup (v |> xs) (Pop b₁) = slookup xs b₁
+data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
+ Top : $\forall$ {G u} $\rightarrow$ Ref (u :: G) (snd u)\\
+ Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
 
--- ** Ref **
+-- ** Exp **\\
 
-data Ref : Γ -> TyExp -> Set where
- Top : forall {G u} -> Ref (u ∷ G) (snd u)
- Pop : forall {G u v} -> Ref G u -> Ref (v ∷ G) u
-
--- ** Exp **
-
-data Exp : TyExp -> Γ -> Bool -> Set where
-  var  : forall {ctx t b} -> Ref ctx t -> Exp t ctx b
-  let₁ : forall {ctx t₁ t₂ b} -> Exp t₁ ctx true -> Exp t₂ (< true , t₁ >  ∷ ctx) b -> Exp t₂ ctx b
+data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set where\\
+  var  : $\forall$ {ctx t b} $\rightarrow$ Ref ctx t $\rightarrow$ Exp t ctx b\\
+  let$_1$ : $\forall$ {ctx t$_1$ t$_2$ b} $\rightarrow$ Exp t$_1$ ctx true $\rightarrow$ Exp t$_2$ (<true,t$_1$>  ::ctx) b $\rightarrow$ Exp t$_2$ ctx b\\
 
 
--- ** Eval **
+-- ** Eval **\\
 
-eval : forall {t₁ ctx b} -> (e : Exp t₁ ctx b) -> Stack ctx -> Val t₁
-eval (var x) env = slookup env x
-eval (let₁ e₁ e₂) env = eval e₂ ((eval e₁ env) |> env)
+eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
+eval (var x) env = slookup env x\\
+eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
 
 \subsection{Type preservation is the type of the interpreter}
 \section{The Second Semantics : compile \& exec}
 
 \subsection{Specifying intermediate code}
-
+\ttfamily
 -- ** Code **
 
-data Code : Γ -> Γ -> Set where
-	LDS   : forall {S t b} -> (f : Ref S t) -> Code S (< b , t > ∷ S)
-    POP   : forall {b S t₁ t₂} -> Code (< b , t₁ > ∷ (< true , t₂ > ∷ S)) (< b , t₁ > ∷ S)
+data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
+	LDS   : $\forall$ {S t b} $\rightarrow$ (f : Ref S t) $\rightarrow$ Code S (< b , t > :: S)\\
+    POP   : $\forall$ {b S t$_1$ t$_2$} $\rightarrow$ Code (<b,t$_1$> :: (<true,t$_2$> :: S)) (<b,t$_1$> :: S)\\
 
 
 \subsection{Implementing an Interpreter for Intermediate Code}
-
+\ttfamily
 -- ** Exec **
 
-exec : {S S' : Γ} -> Code S S' -> Stack S -> Stack S'
-exec (LDS f) s = (slookup s f) |> s
-exec POP (v |> (v₁ |> s)) = v |> s
+exec : {S S' : $\Gamma$} $\rightarrow$ Code S S' $\rightarrow$ Stack S $\rightarrow$ Stack S'\\
+exec (LDS f) s = (slookup s f) $\rhd$ s\\
+exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
 
 \subsection{Converting between contexts}
-
+\ttfamily
 -- ** Converting between contexts **
 
-trimEnv : Γ -> Γ
-trimEnv [] = []
-trimEnv (< true , x₁ > ∷ s) = < true , x₁ > ∷ trimEnv s
-trimEnv (< false , x₁ > ∷ s) = trimEnv s
+trimEnv : $\Gamma$ $\rightarrow$ $\Gamma$\\
+trimEnv [] = []\\
+trimEnv (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimEnv s\\
+trimEnv (< false , x$_1$ > :: s) = trimEnv s\\
 
-convertRef : forall {S t} -> Ref (trimEnv S) t -> Ref S t
-convertRef {[]} ()
-convertRef {< true , x₁ > ∷ S} Top = Top
-convertRef {< true , x₁ > ∷ S} (Pop s) = Pop (convertRef s)
-convertRef {< false , x₁ > ∷ S} s = Pop (convertRef s)
+convertRef : $\forall$ {S t} $\rightarrow$ Ref (trimEnv S) t $\rightarrow$ Ref S t\\
+convertRef {[]} ()\\
+convertRef {< true , x$_1$ > :: S} Top = Top\\
+convertRef {< true , x$_1$ > :: S} (Pop s) = Pop (convertRef s)\\
+convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
 
 
 \subsection{Implementing the compiler to intermediate code}
-
+\ttfamily
 -- ** Compile ** 
 
-compile : forall {b S t} -> (e : Exp t (trimEnv S) b) -> Code S (< b , t > ∷ S)
-compile (var x) = LDS (convertRef x)
-compile (let₁ e e₁) = compile e ++₁ (compile e₁ ++₁ POP)
+compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ Code S (<b,t> :: S)\\
+compile (var x) = LDS (convertRef x)\\
+compile (let$_1$ e e$_1$) = compile e ++$_1$ (compile e$_1$ ++$_1$ POP)\\
 
 
 \section{Compiler Correctness}
-
-trimStack : forall {S} -> Stack S -> Stack (trimEnv S)
-trimStack {[]} x = empty
-trimStack {< true , x₁ > ∷ S} (v |> x₂) = v |> (trimStack x₂)
-trimStack {< false , x₁ > ∷ S} (v |> x₂) = trimStack x₂
-
-
-lemma : forall {S t} -> (x : Ref (trimEnv S) t) -> (s : Stack S) -> (slookup (trimStack s) x) ≡ (slookup s (convertRef x))
-lemma {[]} () s
-lemma {< true , t > ∷ S} Top (v |> s) = refl
-lemma {< true , x₁ > ∷ S} (Pop e) (v |> s) = lemma e s
-lemma {< false , x₁ > ∷ S} e (v |> s) = lemma e s
-
-correct : forall {b S t} -> (e : Exp t (trimEnv S) b) -> (s : Stack S) -> ((eval e (trimStack s)) |> s) ≡ (exec (compile e) s)
-correct (var x) s with lemma x s
-... | p with slookup (trimStack s) x | slookup s (convertRef x) 
-correct (var x) s | refl | .l | l = refl
-correct (let₁ e e₁) s with correct e s
-... | p1 with exec (compile e) s | eval e (trimStack s)
-correct (let₁ e e₁) s | refl | .(p3 |> s) | p3 with correct e₁ (_|>_ {true} p3 s)
-... | p4 with exec (compile e₁) (_|>_ {true} p3 s) | eval e₁ (p3 |> trimStack s)
-correct (let₁ e e₁) s | refl | .(p3 |> s) | p3 | refl | .(p6 |> (p3 |> s)) | p6 = refl
+\ttfamily
+trimStack : $\forall$ {S} $\rightarrow$ Stack S $\rightarrow$ Stack (trimEnv S)\\
+trimStack {[]} x = empty\\
+trimStack {< true , x$_1$ > :: S} (v $\rhd$ x$_2$) = v $\rhd$ (trimStack x$_2$)\\
+trimStack {< false , x$_1$ > :: S} (v $\rhd$ x$_2$) = trimStack x$_2$\\
 
 
+lemma : $\forall$ {S t} $\rightarrow$ (x : Ref (trimEnv S) t) $\rightarrow$ (s : Stack S) $\rightarrow$ (slookup (trimStack s) x) $\equiv$ (slookup s (convertRef x))\\
+lemma {[]} () s\\
+lemma {< true , t > :: S} Top (v $\rhd$ s) = refl\\
+lemma {< true , x$_1$ > :: S} (Pop e) (v $\rhd$ s) = lemma e s\\
+lemma {< false , x$_1$ > :: S} e (v $\rhd$ s) = lemma e s\\
+
+correct : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ (s : Stack S) $\rightarrow$ ((eval e (trimStack s)) $\rhd$ s) ≡ (exec (compile e) s)\\
+correct (var x) s with lemma x s\\
+... | p with slookup (trimStack s) x | slookup s (convertRef x) \\
+correct (var x) s | refl | .l | l = refl\\
+correct (let$_1$ e e$_1$) s with correct e s\\
+... | p1 with exec (compile e) s | eval e (trimStack s)\\
+correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 with correct e$_1$ (\_$\rhd$\_ {true} p3 s)\\
+... | p4 with exec (compile e$_1$) (\_$\rhd$\_ {true} p3 s) | eval e$_1$ (p3 $\rhd$ trimStack s)\\
+correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 | refl | .(p6 $\rhd$ (p3 $\rhd$ s)) | p6 = refl\\
+\normalfont
 \section{Conclusion}
 \section{Related work} %required by assignment description
 A Certified Type-Preserving Compiler from Lambda Calculus to
