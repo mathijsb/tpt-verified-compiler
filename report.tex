@@ -81,16 +81,18 @@
 
 \section{abstract}
 In this paper we will describe an extension to the type-correct, stack-safe, provably correct expression compiler described in the paper "A type-correct, stack-safe, provably correct expression compiler in Epigram". Our extension adds 'let' bindings to this compiler. We will describe the following components of our extension:
-* evaluation semantics
-* compiler
-* interpreter
-* correctness proof
+\begin{itemize}
+\item{evaluation semantics}
+\item{compiler}
+\item{interpreter}
+\item{correctness proof}
+\end{itemize}
 
 \section{Introduction}
 \section{The First Semantics : eval}
-\ttfamily
--- ** Types \& values **\\
+We start by defining our language. It consists of a simple, typed labda calculus.\\
 \\
+\ttfamily
 data TyExp : Set where\\
   TyNat : TyExp\\
   TyBool : TyExp\\
@@ -98,7 +100,9 @@ data TyExp : Set where\\
 data Val : TyExp $\rightarrow$ Set where\\
   nat : $\mathbb{N}$ $\rightarrow$ Val TyNat\\
   bool : Bool $\rightarrow$ Val TyBool\\
+\normalfont
 
+\ttfamily
 -- ** Tuples **\\
 
 data \_x\_ (A B : Set) : Set where\\
@@ -148,7 +152,7 @@ data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set whe
 eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
 eval (var x) env = slookup env x\\
 eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
-
+\normalfont
 \subsection{Type preservation is the type of the interpreter}
 \section{The Second Semantics : compile \& exec}
 
@@ -159,7 +163,7 @@ eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
 data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 	LDS   : $\forall$ {S t b} $\rightarrow$ (f : Ref S t) $\rightarrow$ Code S (< b , t > :: S)\\
     POP   : $\forall$ {b S t$_1$ t$_2$} $\rightarrow$ Code (<b,t$_1$> :: (<true,t$_2$> :: S)) (<b,t$_1$> :: S)\\
-
+\normalfont
 
 \subsection{Implementing an Interpreter for Intermediate Code}
 \ttfamily
@@ -168,7 +172,7 @@ data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 exec : {S S' : $\Gamma$} $\rightarrow$ Code S S' $\rightarrow$ Stack S $\rightarrow$ Stack S'\\
 exec (LDS f) s = (slookup s f) $\rhd$ s\\
 exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
-
+\normalfont
 \subsection{Converting between contexts}
 \ttfamily
 -- ** Converting between contexts **
@@ -183,7 +187,7 @@ convertRef {[]} ()\\
 convertRef {< true , x$_1$ > :: S} Top = Top\\
 convertRef {< true , x$_1$ > :: S} (Pop s) = Pop (convertRef s)\\
 convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
-
+\normalfont
 
 \subsection{Implementing the compiler to intermediate code}
 \ttfamily
@@ -192,7 +196,7 @@ convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
 compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ Code S (<b,t> :: S)\\
 compile (var x) = LDS (convertRef x)\\
 compile (let$_1$ e e$_1$) = compile e ++$_1$ (compile e$_1$ ++$_1$ POP)\\
-
+\normalfont
 
 \section{Compiler Correctness}
 \ttfamily
