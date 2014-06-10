@@ -71,7 +71,7 @@
 \horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
 }
 
-\author{Mathijs Baaijens\\ Nico Naus, 3472353} % Your name
+\author{Mathijs Baaijens, 3542068 \\ Nico Naus, 3472353} % Your name
 
 \begin{document}
 
@@ -91,8 +91,8 @@ In this paper we will describe an extension to the type-correct, stack-safe, pro
 \section{Introduction}
 "A type-correct, stack-safe, provably correct expression compiler in Epigram" by McKinna and Wright is a nice, practical paper about proving the correctness of a simple compiler in a dependently typed programming language. In their paper, the authors use two semantics, one being this compiler, and then proof that both semantics result in the same value for every possible program. Their language consists only of boolean and integer values, plus and if-then-else. We will extend their work to show that this proof can also be done when we extend the language with let-bindings.
 
-\section{The language}
-We start by defining our language. It consists of a simple imperative language. This language is based on the one in the paper by McKinna, but extended with let-bindings.\\
+\section{Typed stacks and references}
+Both the \textbf{eval} and the \textbf{exec \& compile} evaluation mechanism use typed stacks. Simple type expressions are encoded in the TyExp datatype. The value datatype encodes values on the stack and is indexed by the type of the value. \\
 \\
 \ttfamily
 data TyExp : Set where\\
@@ -104,9 +104,8 @@ data Val : TyExp $\rightarrow$ Set where\\
   bool : Bool $\rightarrow$ Val TyBool\\
   \\
 \normalfont
-In order to make these let-bindings work, we will first construct a context. This context is represented by a list of tuples holding a boolean and a TyExp. This boolean encodes whether or not the value is a result of a let-binding. It's use will become more clear when the semantics are defined.\\
+The definition of tuples is straightforward and given here for clarity \\
 \ttfamily
-\\
 
 data \_x\_ (A B : Set) : Set where\\
   <\_,\_> : A $\rightarrow$ B $\rightarrow$ A x B\\
@@ -117,25 +116,40 @@ fst < x , y > = x\\
 snd : {A B : Set} $\rightarrow$ A x B $\rightarrow$ B\\
 snd < x , y > = y\\
 
+\normalfont
+A context is a list of type expression paired with a boolean indicating whether the stack value is bound to a \'let'\ statement. This boolean will become important in section 3 when converting between stacks used in the \textbf{eval} semantics and the \textbf{exec \& compile} semantics.  \\
+\ttfamily
+\\
 $\Gamma$ = List (Bool x TyExp)\\
 
+\normalfont
+A stack is a list of values. Elements can only appended at the start of a list. The stack datatype is indexed by a context.\\
+\ttfamily
+\\
 data Stack : $\Gamma$ $\rightarrow$ Set where\\
   empty : Stack []\\
   \_$\rhd$\_ : $\forall$ {b t s} $\rightarrow$ (v:Val t) $\rightarrow$ (xs : Stack s) $\rightarrow$ Stack (<b,t> :: s)\\
   
 \normalfont
-Next, we define references.\\
+The Ref datatype defines references to values on the stack. The datatype is indexed by the context of the stack the reference refers to and the type of the value the reference refers to.\\
 \ttfamily
 \\
 data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
  Top : $\forall$ {G u} $\rightarrow$ Ref (u :: G) (snd u)\\
  Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
+\normalfont
 
+Now we are able to define a function to lookup values in a stack. The reference context is equal to the context of the stack, making it impossible to pass references pointing to invalid locations (or locations storing the wrong type of value). The lookup function therefore always returns a value.\\
+
+\ttfamily
 slookup : $\forall$ {S t} $\rightarrow$ Stack S $\rightarrow$ Ref S t $\rightarrow$ Val t\\
 slookup (v $\rhd$ xs) Top = v\\
 slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
 \normalfont
+
+\section{The First Semantics : eval}
+
 Lastly we need to add the let binding to the expressions.\\
 \ttfamily
 
@@ -144,8 +158,6 @@ data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set whe
   let$_1$ : $\forall$ {ctx t$_1$ t$_2$ b} $\rightarrow$ Exp t$_1$ ctx true $\rightarrow$ Exp t$_2$ (<true,t$_1$>  ::ctx) b $\rightarrow$ Exp t$_2$ ctx b\\
 
 \normalfont
-
-\section{The First Semantics : eval}
 
 Now the evaluation function. An environment is now passed around. When evaluating a var expression, we can look it up in this environment and return it. When we evaluate a let-binding, we first evaluate $e_1$, and push it into the environment. We use this updated environment to evaluate $e_2$.\\
 
