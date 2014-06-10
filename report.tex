@@ -203,8 +203,9 @@ exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
 \normalfont
 \subsection{Converting between contexts}
 
-We define a function to convert an execution context to an evaluation context.
+We define a function to convert an execution context to an evaluation context.\\
 \ttfamily
+\\
 trimContext : $\Gamma$ $\rightarrow$ $\Gamma$\\
 trimContext [] = []\\
 trimContext (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimContext s\\
@@ -213,6 +214,7 @@ trimContext (< false , x$_1$ > :: s) = trimContext s\\
 \normalfont
 Now we can define a function that converts evaluation stack references to execution stack references. The trimEnv function is used to establish a relation between the context of the stacks. Because an evaluation stack is always a subset of an execution stack the conversion is always possible.\\
 \ttfamily
+\\
 convertRef : $\forall$ {S t} $\rightarrow$ Ref (trimContext S) t $\rightarrow$ Ref S t\\
 convertRef {[]} ()\\
 convertRef {< true , x$_1$ > :: S} Top = Top\\
@@ -222,7 +224,7 @@ convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
 \normalfont
 
 \subsection{Implementing the compiler to intermediate code}
-Implementing compilation is straightforward. Just as for convertRef the relation between the evaluation stack and the execution stack is expressed using the trimContext function. 
+Implementing compilation is straightforward. Just as for convertRef the relation between the evaluation stack and the execution stack is expressed using the trimContext function. \\
 \\
 \ttfamily
 compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimContext S) b) $\rightarrow$ Code S (<b,t> :: S)\\
@@ -251,9 +253,9 @@ lemma {< true , x$_1$ > :: S} (Pop e) (v $\rhd$ s) = lemma e s\\
 lemma {< false , x$_1$ > :: S} e (v $\rhd$ s) = lemma e s\\
 
 \normalfont
-Now we can define the correctness proof of our compiler.
+Now we can define the correctness proof of our compiler.\\
 \ttfamily
-
+\\
 correct : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ (s : Stack S) $\rightarrow$ ((eval e (trimStack s)) $\rhd$ s) ≡ (exec (compile e) s)\\
 correct (var x) s with lemma x s\\
 ... | p with slookup (trimStack s) x | slookup s (convertRef x) \\
