@@ -90,8 +90,9 @@ In this paper we will describe an extension to the type-correct, stack-safe, pro
 
 \section{Introduction}
 "A type-correct, stack-safe, provably correct expression compiler in Epigram" by McKinna and Wright is a nice, practical paper about proving the correctness of a simple compiler in a dependently typed programming language. In their paper, the authors use two semantics, one being this compiler, and then proof that both semantics result in the same value for every possible program. Their language consists only of boolean and integer values, plus and if-then-else. We will extend their work to show that this proof can also be done when we extend the language with let-bindings.
-\section{The First Semantics : eval}
-We start by defining our language. It consists of a simple, typed labda calculus. This language is based on the one in the paper by McKinna, but extended with let-bindings.\\
+
+\section{The language}
+We start by defining our language. It consists of a simple imperative language. This language is based on the one in the paper by McKinna, but extended with let-bindings.\\
 \\
 \ttfamily
 data TyExp : Set where\\
@@ -101,11 +102,11 @@ data TyExp : Set where\\
 data Val : TyExp $\rightarrow$ Set where\\
   nat : $\mathbb{N}$ $\rightarrow$ Val TyNat\\
   bool : Bool $\rightarrow$ Val TyBool\\
+  \\
 \normalfont
-In order to make these let-bindings work, we will first construct a context. This context is represented by a list of tuples holding a boolean and a TyExp \\
+In order to make these let-bindings work, we will first construct a context. This context is represented by a list of tuples holding a boolean and a TyExp. This boolean encodes whether or not the value is a result of a let-binding. It's use will become more clear when the semantics are defined.\\
 \ttfamily
 \\
--- ** Tuples **\\
 
 data \_x\_ (A B : Set) : Set where\\
   <\_,\_> : A $\rightarrow$ B $\rightarrow$ A x B\\
@@ -116,11 +117,7 @@ fst < x , y > = x\\
 snd : {A B : Set} $\rightarrow$ A x B $\rightarrow$ B\\
 snd < x , y > = y\\
 
--- ** Context **\\
-
 $\Gamma$ = List (Bool x TyExp)\\
-
--- ** Stack **\\
 
 data Stack : $\Gamma$ $\rightarrow$ Set where\\
   empty : Stack []\\
@@ -130,8 +127,6 @@ data Stack : $\Gamma$ $\rightarrow$ Set where\\
 Next, we define references.\\
 \ttfamily
 \\
--- ** References **\\
-
 data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
  Top : $\forall$ {G u} $\rightarrow$ Ref (u :: G) (snd u)\\
  Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
@@ -142,19 +137,19 @@ slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
 \normalfont
 Lastly we need to add the let binding to the expressions.\\
-\\
 \ttfamily
--- ** Exp **\\
 
 data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set where\\
   var  : $\forall$ {ctx t b} $\rightarrow$ Ref ctx t $\rightarrow$ Exp t ctx b\\
   let$_1$ : $\forall$ {ctx t$_1$ t$_2$ b} $\rightarrow$ Exp t$_1$ ctx true $\rightarrow$ Exp t$_2$ (<true,t$_1$>  ::ctx) b $\rightarrow$ Exp t$_2$ ctx b\\
 
 \normalfont
+
+\section{The First Semantics : eval}
+
 Now the evaluation function. An environment is now passed around. When evaluating a var expression, we can look it up in this environment and return it. When we evaluate a let-binding, we first evaluate $e_1$, and push it into the environment. We use this updated environment to evaluate $e_2$.\\
-\\
+
 \ttfamily
--- ** Eval **\\
 
 eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
 eval (var x) env = slookup env x\\
@@ -166,8 +161,6 @@ The semantics we are about to define is the actual compiler we want to proof to 
 The code needs to accommodate let-bindings. This requires the stack-operations Load from Stack and Pop Stack.\\
 \\
 \ttfamily
--- ** Code **
-
 data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 	LDS   : $\forall$ {S t b} $\rightarrow$ (f : Ref S t) $\rightarrow$ Code S (< b , t > :: S)\\
     POP   : $\forall$ {b S t$_1$ t$_2$} $\rightarrow$ Code (<b,t$_1$> :: (<true,t$_2$> :: S)) (<b,t$_1$> :: S)\\
@@ -177,8 +170,6 @@ data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 The execution function is extended accordingly.\\
 \\
 \ttfamily
--- ** Exec **
-
 exec : {S S' : $\Gamma$} $\rightarrow$ Code S S' $\rightarrow$ Stack S $\rightarrow$ Stack S'\\
 exec (LDS f) s = (slookup s f) $\rhd$ s\\
 exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
@@ -186,8 +177,6 @@ exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
 \subsection{Converting between contexts}
 
 \ttfamily
--- ** Converting between contexts **
-
 trimEnv : $\Gamma$ $\rightarrow$ $\Gamma$\\
 trimEnv [] = []\\
 trimEnv (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimEnv s\\
@@ -205,8 +194,6 @@ For the actual compiler, we compile a variable expression to loading it's value 
 Let-bindings require for the bound expression to be evaluated, then popped, and then for evaluation of the body, now that the boud expression is available.\\
 \\
 \ttfamily
--- ** Compile ** 
-
 compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ Code S (<b,t> :: S)\\
 compile (var x) = LDS (convertRef x)\\
 compile (let$_1$ e e$_1$) = compile e ++$_1$ (compile e$_1$ ++$_1$ POP)\\
