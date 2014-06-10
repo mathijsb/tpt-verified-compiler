@@ -80,16 +80,17 @@
 %----------------------------------------------------------------------------------------
 
 \section{abstract}
-In this paper we will describe an extension to the type-correct, stack-safe, provably correct expression compiler described in the paper "A type-correct, stack-safe, provably correct expression compiler in Epigram". Our extension adds 'let' bindings to this compiler. We will describe the following components of our extension:
+We describe an extension to the type-correct, stack-safe, provably correct expression compiler described in the paper \textit{"A type-correct, stack-safe, provably correct expression compiler in Epigram"} by McKinna and Wright. Our extension adds non-mutual recursive \ttfamily let \normalfont  bindings to this compiler. We describe the following components of our extension:
 \begin{itemize}
-\item{evaluation semantics}
-\item{compiler}
-\item{interpreter}
-\item{correctness proof}
+\item{Evaluation semantics using a primitive-recursive interpreter}
+\item{A compiler to tree-structure code}
+\item{A simple stack based interpreter for the code}
+\item{A compiler correctness proof}
 \end{itemize}
+In this paper we assume familiarity with the work presented in the paper by McKinna and Wright.
 
 \section{Introduction}
-"A type-correct, stack-safe, provably correct expression compiler in Epigram" by McKinna and Wright is a nice, practical paper about proving the correctness of a simple compiler in a dependently typed programming language. In their paper, the authors use two semantics, one being this compiler, and then proof that both semantics result in the same value for every possible program. Their language consists only of boolean and integer values, plus and if-then-else. We will extend their work to show that this proof can also be done when we extend the language with let-bindings.
+\textit{"A type-correct, stack-safe, provably correct expression compiler in Epigram"}\cite{Compiler} by McKinna and Wright is a practical paper about utilizing dependently typed programming to prove the correctness of a simple expreession compiler. In the paper the authors describe two semantics: a primitive-recursive interpreter, \textbf{eval}, and a compiler \textbf{compile} to tree-structured code for a simple stack-based abstract machine with interpreter \textbf{exec}. The language consists only of boolean and integer values and plus and if-then-else-statements. We will extend the evaluation semantics and correctness proof described in this paper with non-mutual recursive \ttfamily let \normalfont  bindings. For our work we will be using Agda\cite{Agda}, a dependantly type programming language similar to the Epigram language used in the paper by McKinna and Wright. 
 
 \section{Typed stacks and references}
 Both the \textbf{eval} and the \textbf{exec \& compile} evaluation mechanism use typed stacks. Simple type expressions are encoded in the \ttfamily TyExp \normalfont datatype. The value datatype encodes values on the stack and is indexed by the type of the value. \\
@@ -117,13 +118,13 @@ snd : {A B : Set} $\rightarrow$ A x B $\rightarrow$ B\\
 snd < x , y > = y\\
 
 \normalfont
-A context is a list of type expression paired with a boolean indicating whether the stack value is bound to a \ttfamily let \normalfont statement. This boolean will become important in section 3 when converting between stacks used in the \textbf{eval} semantics and the \textbf{exec \& compile} semantics.  \\
+A context is a list of type expressions paired with a boolean indicating whether the stack value is bound to a \ttfamily let \normalfont statement. This boolean will become important in section 5 when converting between contexts used in the \textbf{eval} semantics and the \textbf{exec \& compile} semantics.  \\
 \ttfamily
 \\
 $\Gamma$ = List (Bool x TyExp)\\
 
 \normalfont
-A stack is a list of values. Elements can only appended at the start of a list. The stack datatype is indexed by a context.\\
+A stack is a list of values. Elements can only appended at the top of a stack list. The stack datatype is indexed by a context.\\
 \ttfamily
 \\
 data Stack : $\Gamma$ $\rightarrow$ Set where\\
@@ -131,7 +132,7 @@ data Stack : $\Gamma$ $\rightarrow$ Set where\\
 \hspace*{5mm}\_$\rhd$\_ : $\forall$ {b t s} $\rightarrow$ (v:Val t) $\rightarrow$ (xs : Stack s) $\rightarrow$ Stack (<b,t> :: s)\\
   
 \normalfont
-The \ttfamily Ref \normalfont datatype defines references to values on the stack. The datatype is indexed by the context of the stack the reference refers to and the type of the value the reference refers to.\\
+The \ttfamily Ref \normalfont datatype defines references to values on a stack. The datatype is indexed by the context of the stack the reference refers to and the type of the value the reference refers to.\\
 \ttfamily
 \\
 data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
@@ -139,7 +140,7 @@ data Ref : $\Gamma$ $\rightarrow$ TyExp $\rightarrow$ Set where\\
 \hspace*{5mm}Pop : $\forall$ {G u v} $\rightarrow$ Ref G u $\rightarrow$ Ref (v :: G) u\\
 \normalfont
 
-Now we are able to define a function to lookup values in a stack. The reference context is equal to the context of the stack, making it impossible to pass references pointing to invalid locations (or locations storing the wrong type of value). The lookup function therefore always returns a value.\\
+Now we define a function to lookup values in a stack. The reference context is equal to the context of the stack, making it impossible to pass references pointing to invalid locations (or locations storing the wrong type of value). The lookup function therefore always returns a value.\\
 
 \ttfamily
 slookup : $\forall$ {S t} $\rightarrow$ Stack S $\rightarrow$ Ref S t $\rightarrow$ Val t\\
@@ -150,7 +151,7 @@ slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
 \section{The First Semantics : eval}
 
-We start with defining expressions. The expression datatype is indexed by the following arguments: \\
+We start with defining expressions. The expression datatype is indexed by the following arguments: 
 
 \begin{itemize}
   \item The type of the result of the expression.
@@ -166,9 +167,9 @@ data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set whe
 
 \normalfont
 
-The \ttfamily var \normalfont constructor takes a reference to a value on the stack. The let constructor takes two expressions. The evaluation context of the second expression is extended with a value of the return type of the first expression.\\
+The \ttfamily var \normalfont constructor takes a reference to a value on the stack. The \ttfamily let \normalfont constructor takes two expressions. The second expression can refer to the result of the first expression using the \ttfamily var \normalfont constructor. The context of the second expression is extended with a value of the return type of the first expression.\\
 
-Now we can write the evaluation function. The evaluation functions takes a expression with result type t and produces a value of type t. The evalation function also takes as argument a stack of all values bound in preceding \'let'\ statements. \\
+Now we can write the evaluation function. The evaluation functions takes a expression with result type t and produces a value of type t. The evalation function also takes as argument a stack of all values bound in preceding \ttfamily let \normalfont statements, we call this the evaluation stack. \\
 \ttfamily
 \\eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
 \normalfont
@@ -183,18 +184,20 @@ Now we can write the evaluation function. The evaluation functions takes a expre
 \normalfont
 
 \section{The Second Semantics : compile \& exec}
-The semantics we are about to define is the actual compiler we want to proof to be correct. Only the extensions that are needed for let-bindings are shown here. For the full compiler and evaluator, refer to the source code.
+The semantics we are about to define describe the actual compiler we want to proof to be correct. The execution semantics operate on a stack we call the execution stack. It is important to note that the execution stack does not contain the same values as the evaluation stack described earlier. The values on the evaluation stack are a subset of the values on the execution stack. 
+
 \subsection{Specifying intermediate code}
-The code needs to accommodate let-bindings. This requires the stack-operations Load from Stack and Pop Stack.\\
+The intermediate code datatype is indexed by two contexts. The first context describes the execution stack before executing the code. The second context describes the execution stack after executing the code. \\
 \\
 \ttfamily
 data Code : $\Gamma$ $\rightarrow$ $\Gamma$ $\rightarrow$ Set where\\
 \hspace*{5mm}LDS   : $\forall$ {S t b} $\rightarrow$ (f : Ref S t) $\rightarrow$ Code S (< b , t > :: S)\\
 \hspace*{5mm}POP   : $\forall$ {b S t$_1$ t$_2$} $\rightarrow$ Code (<b,t$_1$> :: (<true,t$_2$> :: S)) (<b,t$_1$> :: S)\\
 \normalfont
+\\The \ttfamily LDS \normalfont instruction pushes a value on the stack referred to by a reference into the execution stack. The \ttfamily POP \normalfont instruction pops the value below the top value of the stack. This might sound odd, but this is exactly the behaviour we need to clear the value introduced by a let statement from the stack after execution.
 
 \subsection{Implementing an Interpreter for Intermediate Code}
-The execution function is extended accordingly.\\
+The execution function is straightforward\\
 \\
 \ttfamily
 exec : {S S' : $\Gamma$} $\rightarrow$ Code S S' $\rightarrow$ Stack S $\rightarrow$ Stack S'\\
@@ -212,7 +215,7 @@ trimContext (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimContext s\\
 trimContext (< false , x$_1$ > :: s) = trimContext s\\
 
 \normalfont
-Now we can define a function that converts evaluation stack references to execution stack references. The \ttfamily trimEnv \normalfont function is used to establish a relation between the context of the stacks. Because an evaluation stack is always a subset of an execution stack the conversion is always possible.\\
+Now we can define a function that converts evaluation stack references to execution stack references. The \ttfamily trimContext \normalfont function is used to establish a relation between the context of the stacks. Because an evaluation stack is always a subset of an execution stack the conversion is always possible.\\
 \ttfamily
 \\
 convertRef : $\forall$ {S t} $\rightarrow$ Ref (trimContext S) t $\rightarrow$ Ref S t\\
@@ -224,7 +227,7 @@ convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
 \normalfont
 
 \subsection{Implementing the compiler to intermediate code}
-Implementing compilation is straightforward. Just as for \ttfamily convertRef \normalfont the relation between the evaluation stack and the execution stack is expressed using the trimContext function. \\
+Implementing compilation is straightforward. Just as for \ttfamily convertRef \normalfont the relation between the evaluation stack and the execution stack is expressed using the \ttfamily trimContext \normalfont function. \\
 \\
 \ttfamily
 compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimContext S) b) $\rightarrow$ Code S (<b,t> :: S)\\
@@ -236,17 +239,17 @@ compile (let$_1$ e e$_1$) = compile e ++$_1$ (compile e$_1$ ++$_1$ POP)\\
 To define the correctness proof we need the equivalent of \ttfamily trimContext \normalfont for stacks. The \ttfamily trimStack \normalfont function removes all values from a stack that are not bound by `let` expressions.\\
 \ttfamily
 
-trimStack : $\forall$ {S} $\rightarrow$ Stack S $\rightarrow$ Stack (trimEnv S)\\
+trimStack : $\forall$ {S} $\rightarrow$ Stack S $\rightarrow$ Stack (trimContext S)\\
 trimStack {[]} x = empty\\
 trimStack {< true , x$_1$ > :: S} (v $\rhd$ x$_2$) = v $\rhd$ (trimStack x$_2$)\\
 trimStack {< false , x$_1$ > :: S} (v $\rhd$ x$_2$) = trimStack x$_2$\\
 
 \normalfont
 
-We start by proving that looking up an evaluation stack reference in a execution stack converted to an evaluation stack equals looking up the reference converted to an execution stack reference in the execution stack reference.\\
+We start by proving the following equivalence.\\
 \ttfamily
 
-lemma : $\forall$ {S t} $\rightarrow$ (x : Ref (trimEnv S) t) $\rightarrow$ (s : Stack S)\\
+lemma : $\forall$ {S t} $\rightarrow$ (x : Ref (trimContext S) t) $\rightarrow$ (s : Stack S)\\
 \hspace*{30mm}$\rightarrow$ (slookup (trimStack s) x) $\equiv$ (slookup s (convertRef x))\\
 
 lemma {[]} () s\\
@@ -255,13 +258,21 @@ lemma {< true , x$_1$ > :: S} (Pop e) (v $\rhd$ s) = lemma e s\\
 lemma {< false , x$_1$ > :: S} e (v $\rhd$ s) = lemma e s\\
 
 \normalfont
-Now we can define the correctness proof of our compiler.\\
+Now we define the type of the correctness proof of our compiler. Once again the \ttfamily trimContext \normalfont method is used to express the relation between the execution stack context and the evaluation stack context. The trimStack function is used to convert the execution stack to an evaluation stack.\\
 \ttfamily
 \\
-correct : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ (s : Stack S)\\\hspace*{36mm} $\rightarrow$ ((eval e (trimStack s)) $\rhd$ s) $\equiv$ (exec (compile e) s)\\
+correct : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimContext S) b) $\rightarrow$ (s : Stack S)\\\hspace*{36mm} $\rightarrow$ ((eval e (trimStack s)) $\rhd$ s) $\equiv$ (exec (compile e) s)\\
+\normalfont
+\\Correctness for var expression is trivial to proof using the lemma defined earlier\\
+\ttfamily
+\\
 correct (var x) s with lemma x s\\
 ... | p with slookup (trimStack s) x | slookup s (convertRef x) \\
 correct (var x) s | refl | .l | l = refl\\
+\normalfont
+\\Correctness for let expression is proved by induction on e and e$_1$ sequentially. In the inductive step on e$_1$ the resulting value of evaluating e is appended to the stack\\
+\ttfamily
+\\
 correct (let$_1$ e e$_1$) s with correct e s\\
 ... | p1 with exec (compile e) s | eval e (trimStack s)\\
 correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 with correct e$_1$ (\_$\rhd$\_ {true} p3 s)\\
@@ -269,12 +280,21 @@ correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 with correct e$_1$ (\_$
 correct (let$_1$ e e$_1$) s | refl | .(p3 $\rhd$ s) | p3 | refl | .(p6 $\rhd$ (p3 $\rhd$ s)) | p6 = refl\\
 \normalfont
 \section{Conclusion}
-We have indeed seen that it is possible to prove correctness for the defined language. The proof however is not all that trivial. In theory, it should be possible to construct a proof for a far more elaborate imperative language, but the proof gets really complicated, really fast. When comparing our work to previous, it is evident that adding just let-bindings makes matters much worse, proof wise.
+We have demonstrated how the dependantly typed programming language Agda can be used to prove the correctness of a compiler supporting \ttfamily let \normalfont statements.
 \section{Related work} %required by assignment description
 A Certified Type-Preserving Compiler from Lambda Calculus to
 Assembly Language \cite{Chlipala}. Here the author presents a certified compiler for a language similar to ours, with a machine-checked correctness proof written in Coq.
 
 \begin{thebibliography}{9}
+\bibitem{Compiler}
+  James McKinna and Joel Wright,
+    \emph{A type-correct, stack-safe, provably correct expression compiler in Epigram}.
+    J. Functional Programming.
+\bibitem{Agda}
+  Ulf Norell and James Chapman ,
+    \emph{Dependently Typed Programming in Agda}.
+    http://www.cse.chalmers.se/~ulfn/papers/afp08/tutorial.pdf.
+
 \bibitem{Chlipala}
 	Adam Chlipala,
   	\emph{A Certified Type-Preserving Compiler from Lambda Calculus to
