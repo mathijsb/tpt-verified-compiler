@@ -150,7 +150,14 @@ slookup (v $\rhd$ xs) (Pop b$_1$) = slookup xs b$_1$\\
 
 \section{The First Semantics : eval}
 
-Lastly we need to add the let binding to the expressions.\\
+We start with defining expressions. The expression datatype is indexed by the following arguments: \\
+
+\begin{itemize}
+  \item The type of the result of the expression.
+  \item A context that defines the layout of the stack the required by \'var\' expressions to look up values.
+  \item A boolean value indicating whether the result of this expression will be pushed on the stack as a value bound by a let expression.
+\end{itemize}
+
 \ttfamily
 
 data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set where\\
@@ -159,14 +166,22 @@ data Exp : TyExp $\rightarrow$ $\Gamma$ $\rightarrow$ Bool $\rightarrow$ Set whe
 
 \normalfont
 
-Now the evaluation function. An environment is now passed around. When evaluating a var expression, we can look it up in this environment and return it. When we evaluate a let-binding, we first evaluate $e_1$, and push it into the environment. We use this updated environment to evaluate $e_2$.\\
+The var constructor takes a reference to a value on the stack. The let constructor takes two expressions. The evaluation context of the second expression is extended with a value of the return type of the first expression.\\
 
+Now we can write the evaluation function. The evaluation functions takes a expression with result type t and produces a value of type t. The evalation function also takes as argument a stack of all values bound in preceding \'let'\ statements. \\
 \ttfamily
-
-eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
-eval (var x) env = slookup env x\\
-eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
+\\eval : $\forall$ {t$_1$ ctx b} $\rightarrow$ (e : Exp t$_1$ ctx b) $\rightarrow$ Stack ctx $\rightarrow$ Val t$_1$\\
 \normalfont
+\\Evaluation a var expression is straightforward, we simply look up the reference in the stack and return it.\\
+\ttfamily
+\\eval (var x) env = slookup env x\\
+\normalfont
+\\When we evaluate a let-binding, we first evaluate $e_1$, and push it into the environment. We use this updated environment to evaluate $e_2$.\\
+\normalfont
+\ttfamily
+\\eval (let$_1$ e$_1$ e$_2$) env = eval e$_2$ ((eval e$_1$ env) $\rhd$ env)\\
+\normalfont
+
 \section{The Second Semantics : compile \& exec}
 The semantics we are about to define is the actual compiler we want to proof to be correct. Only the extensions that are needed for let-bindings are shown here. For the full compiler and evaluator, refer to the source code.
 \subsection{Specifying intermediate code}
