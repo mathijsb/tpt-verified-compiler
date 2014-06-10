@@ -203,42 +203,56 @@ exec POP (v $\rhd$ (v$_1$ $\rhd$ s)) = v $\rhd$ s\\
 \normalfont
 \subsection{Converting between contexts}
 
+We define a function to convert an execution context to an evaluation context.
 \ttfamily
-trimEnv : $\Gamma$ $\rightarrow$ $\Gamma$\\
-trimEnv [] = []\\
-trimEnv (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimEnv s\\
-trimEnv (< false , x$_1$ > :: s) = trimEnv s\\
+trimContext : $\Gamma$ $\rightarrow$ $\Gamma$\\
+trimContext [] = []\\
+trimContext (< true , x$_1$ > :: s) = < true , x$_1$ > :: trimContext s\\
+trimContext (< false , x$_1$ > :: s) = trimContext s\\
 
-convertRef : $\forall$ {S t} $\rightarrow$ Ref (trimEnv S) t $\rightarrow$ Ref S t\\
+\normalfont
+Now we can define a function that converts evaluation stack references to execution stack references. The trimEnv function is used to establish a relation between the context of the stacks. Because an evaluation stack is always a subset of an execution stack the conversion is always possible.\\
+\ttfamily
+convertRef : $\forall$ {S t} $\rightarrow$ Ref (trimContext S) t $\rightarrow$ Ref S t\\
 convertRef {[]} ()\\
 convertRef {< true , x$_1$ > :: S} Top = Top\\
 convertRef {< true , x$_1$ > :: S} (Pop s) = Pop (convertRef s)\\
 convertRef {< false , x$_1$ > :: S} s = Pop (convertRef s)\\
+
 \normalfont
 
 \subsection{Implementing the compiler to intermediate code}
-For the actual compiler, we compile a variable expression to loading it's value from stack.\\
-Let-bindings require for the bound expression to be evaluated, then popped, and then for evaluation of the body, now that the boud expression is available.\\
+Implementing compilation is straightforward. Just as for convertRef the relation between the evaluation stack and the execution stack is expressed using the trimContext function. 
 \\
 \ttfamily
-compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ Code S (<b,t> :: S)\\
+compile : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimContext S) b) $\rightarrow$ Code S (<b,t> :: S)\\
 compile (var x) = LDS (convertRef x)\\
 compile (let$_1$ e e$_1$) = compile e ++$_1$ (compile e$_1$ ++$_1$ POP)\\
 \normalfont
 
 \section{Compiler Correctness}
+To define the correctness proof we need the equivalent of trimContext for stacks. The trimStack function removes all values from a stack that are not bound by `let` expressions.\\
 \ttfamily
+
 trimStack : $\forall$ {S} $\rightarrow$ Stack S $\rightarrow$ Stack (trimEnv S)\\
 trimStack {[]} x = empty\\
 trimStack {< true , x$_1$ > :: S} (v $\rhd$ x$_2$) = v $\rhd$ (trimStack x$_2$)\\
 trimStack {< false , x$_1$ > :: S} (v $\rhd$ x$_2$) = trimStack x$_2$\\
 
+\normalfont
+
+We start by proving that looking up an evaluation stack reference in a execution stack converted to an evaluation stack equals looking up the reference converted to an execution stack reference in the execution stack reference.\\
+\ttfamily
 
 lemma : $\forall$ {S t} $\rightarrow$ (x : Ref (trimEnv S) t) $\rightarrow$ (s : Stack S) $\rightarrow$ (slookup (trimStack s) x) $\equiv$ (slookup s (convertRef x))\\
 lemma {[]} () s\\
 lemma {< true , t > :: S} Top (v $\rhd$ s) = refl\\
 lemma {< true , x$_1$ > :: S} (Pop e) (v $\rhd$ s) = lemma e s\\
 lemma {< false , x$_1$ > :: S} e (v $\rhd$ s) = lemma e s\\
+
+\normalfont
+Now we can define the correctness proof of our compiler.
+\ttfamily
 
 correct : $\forall$ {b S t} $\rightarrow$ (e : Exp t (trimEnv S) b) $\rightarrow$ (s : Stack S) $\rightarrow$ ((eval e (trimStack s)) $\rhd$ s) ≡ (exec (compile e) s)\\
 correct (var x) s with lemma x s\\
